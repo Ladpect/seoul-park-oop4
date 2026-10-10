@@ -1,9 +1,21 @@
 """
-주제 2 시각화: 세대/연령대별 공원 보유 여부에 따른 생활인구 계절적 증가폭 분석
+[주제 2] 세대/연령대별 공원 반응도 통계 검정 및 Plotly 시각화 모듈
 
-입력: daytime_age_pop.csv (extract_age_data.py 출력)
-출력: docs/topic2/*.html  (GitHub Pages용 정적 인터랙티브 그래프)
-      docs/topic2/stats_summary.csv
+1. 파일 내용 (What is inside):
+   - AgeGroupAnalyzer: 5대 세대 그룹별(유아동, 청소년, 청년, 중장년, 노년) 인구 증가율 집계 및 그룹별 t-검정 엔진.
+   - AgeRateBarChart: 5개 세대별 공원 보유 동 vs 미보유 동의 봄철 생활인구 증가율 비교 그룹 막대그래프.
+   - AgeForestChart: 세대별 공원 유무에 따른 증가율 격차(+%p) 및 95% 신뢰구간(CI) 비교 포레스트 플롯.
+   - AgeYearlyTrendChart: 4개년(2023~2026) 세대별 증가율 격차의 연도별 시계열 추이선 그래프.
+
+2. 파일 역할 (Role & Function):
+   - 봄철 공원의 인구 유인 효과가 어떤 세대에 집중되는지 규명합니다.
+   - 유아동 동반 가족(+4.12%p, p=0.0107)과 청년층(+2.82%p, p=0.0148)의 뚜렷한 공원 선호 현상을 통계적으로 입증합니다.
+
+3. 입출력 (I/O):
+   - 입력: data/processed/daytime_age_pop.csv
+           data/raw/HangJeongDong_ver20260701.geojson
+   - 출력: docs/topic2/*.html (독립 실행형 차트 HTML)
+           docs/topic2/stats_summary.csv (세대별 통계 검정 요약표)
 """
 import sys
 from abc import ABC, abstractmethod
