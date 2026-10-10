@@ -94,32 +94,66 @@
 
 ---
 
-## 📂 프로젝트 디렉토리 구조
+## 📂 프로젝트 구조 및 파일별 상세 설명
+
+프로젝트는 데이터 수명주기(원천 데이터 수집 ➔ OOP 전처리 파이프라인 ➔ 통계 분석 및 Plotly 시각화 ➔ GitHub Pages 웹 대시보드 배포)에 맞추어 체계적으로 모듈화되어 있습니다.
 
 ```
 OOP/
-├── data/
-│   ├── raw/                              # 원천 데이터
-│   │   ├── park_dong_map.csv             # 서울시 주요 공원-행정동 맵핑 데이터
-│   │   ├── HangJeongDong_ver20260701.geojson # 행정동 지리 경계 데이터 (admdongkor)
-│   │   └── LPD/                          # (git 제외) 원천 생활인구 월별 CSV들
-│   └── processed/                        # 전처리 및 정제 완료 데이터셋
-│       ├── daytime_weekend_pop.csv       # 주제 1 가공 데이터 (6,784행)
-│       └── daytime_age_pop.csv           # 주제 2 세대별 가공 데이터 (40,704행)
-├── preprocessing/                        # 데이터 정제 및 전처리 파이프라인
-│   ├── newdata.py                        # 주제 1 OOP 전처리 스크립트
-│   └── extract_age_data.py               # 주제 2 OOP 세대별 전처리 스크립트
-├── analysis/                             # 통계 분석 및 Plotly 시각화 모듈
-│   ├── topic1_visualize.py               # 주제 1 통계 검정 및 차트 생성
-│   ├── topic2_visualize.py               # 주제 2 세대별 통계 검정 및 차트 생성
-│   └── build_dashboard.py                # 2개 탭 통합 대시보드 빌더
-├── docs/                                 # GitHub Pages 배포 웹 디렉토리
-│   ├── index.html                        # 2개 탭 통합 대시보드 메인
-│   ├── topic1/                           # 주제 1 개별 차트 및 통계표
-│   └── topic2/                           # 주제 2 개별 차트 및 통계표
-├── .gitignore                            # 대용량 원천 데이터 및 문서 제외 설정
-└── README.md                             # 프로젝트 기술 문서
+├── data/                                 # 데이터 디렉토리
+│   ├── README.md                         # 데이터셋(원천/정제) 상세 명세서
+│   ├── raw/                              # 원천 데이터 (공원 맵핑, GeoJSON, 월별 생활인구)
+│   └── processed/                        # 전처리 및 정제 완료 통계 분석용 데이터셋
+├── preprocessing/                        # 객체지향(OOP) 데이터 정제 및 집계 파이프라인
+│   ├── newdata.py                        # [주제 1] 주말 낮 생활인구 집계 모듈
+│   └── extract_age_data.py               # [주제 2] 5대 세대별 생활인구 집계 모듈
+├── analysis/                             # 통계 검정 및 인터랙티브 Plotly 시각화 모듈
+│   ├── topic1_visualize.py               # [주제 1] 공원 유무별 계절 변동 검정 및 차트
+│   ├── topic2_visualize.py               # [주제 2] 세대별 공원 반응도 검정 및 차트
+│   └── build_dashboard.py                # 통합 웹 대시보드 빌더
+├── docs/                                 # GitHub Pages 배포 디렉토리
+│   ├── index.html                        # 2개 탭 통합 대시보드 메인 웹 애플리케이션
+│   ├── topic1/                           # 주제 1 개별 차트 HTML 및 통계표 CSV
+│   └── topic2/                           # 주제 2 개별 차트 HTML 및 통계표 CSV
+├── .gitignore                            # 대용량 원천 데이터(LPD/) 및 로컬 문서 제외
+└── README.md                             # 프로젝트 종합 안내 기술 문서
 ```
+
+### 1. `data/` (데이터셋 디렉토리)
+| 파일 / 폴더명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
+| :--- | :--- | :--- |
+| `data/README.md` | 데이터 디렉토리 내 원천/정제 데이터셋의 상세 스키마 및 출처 정리 | `data/` 디렉토리 방문 시 데이터셋 명세를 즉시 확인할 수 있도록 안내 |
+| `data/raw/park_dong_map.csv` | 서울시 102개 주요 공원의 번호, 공원명, 자치구, 8자리 행정동코드, 면적($m^2$), 좌표, 시설물, 주소 정보 | 서울시 424개 행정동 중 공원 보유 동(102개)과 미보유 동(322개)을 식별하고 독립변수(`has_park`)를 정의하는 기준 데이터셋 |
+| `data/raw/HangJeongDong_ver20260701.geojson` | 대한민국 행정동 지리 경계 다각형 좌표 및 행정동 코드·이름 매핑 GeoJSON ([출처: admdongkor](https://github.com/vuski/admdongkor)) | 8자리 행정동 코드를 사람이 직관적으로 이해할 수 있는 동 이름(예: '종로구 청운효자동', '마포구 상암동')으로 변환하여 차트 툴팁에 표시 |
+| `data/raw/LPD/` *(git 제외)* | 4개년(2023~2026) 1월·5월 서울시 생활인구 월별 원천 CSV 파일 8개 (총 수천만 건의 시간대별 행정동 인구 원시 데이터) | 전처리 파이프라인의 입력 원천 데이터 (대용량으로 인해 `.gitignore`로 관리되며 로컬에 보관) |
+| `data/processed/daytime_weekend_pop.csv` | 424개 행정동 × 4개년 × 2개 계절(1월·5월) × 주말/평일 낮 시간대(10~17시) 평균 생활인구 집계 (6,784행) | **[주제 1]** 혹한기 대비 봄철 생활인구 증가율 계산, 독립표본 t-검정, Mann-Whitney U 검정 수행의 입력 데이터 |
+| `data/processed/daytime_age_pop.csv` | 424개 행정동 × 4개년 × 2개 계절 × 5개 세대(유아동, 청소년, 청년, 중장년, 노년)별 주말 낮 생활인구 집계 (40,704행) | **[주제 2]** 5대 세대 그룹별 봄철 생활인구 증가율 및 공원 반응도 격차 통계 검정의 입력 데이터 |
+
+### 2. `preprocessing/` (데이터 정제 및 전처리 파이프라인)
+| 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
+| :--- | :--- | :--- |
+| `preprocessing/newdata.py` | `CsvSource`(추상 클래스), `LivingPopSource`, `ParkMapSource`, `HolidayCalendar`, `ParkMapper`, `DaytimePopPreprocessor` 클래스 | 대이동 왜곡을 일으키는 설 연휴(2023/2025)를 제외하고, 주말/공휴일 낮 시간대 평균 인구를 집계하여 `data/processed/daytime_weekend_pop.csv` 생성 |
+| `preprocessing/extract_age_data.py` | `newdata.py`의 기반 클래스를 상속받은 `AgeLivingPopSource`, `AgePopPreprocessor` 클래스 및 5대 세대 정의 | 원천 생활인구 32개 열을 파싱하여 5개 생애주기 세대(영유아, 청소년, 청년, 중장년, 고령층)별 인구로 분할 집계하여 `data/processed/daytime_age_pop.csv` 생성 |
+
+### 3. `analysis/` (통계 분석 및 시각화 모듈)
+| 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
+| :--- | :--- | :--- |
+| `analysis/topic1_visualize.py` | `SeasonalChangeAnalyzer`, `DongNameLookup`, `Theme`, `Chart`(추상 클래스), `RateDistributionChart`, `DifferenceForestChart`, `YearlyTrendChart` 클래스 | **[주제 1]** 계절 증가율 계산, 독립표본 t-검정 및 U-검정 수행, 박스플롯·포레스트플롯·4개년 추이선 인터랙티브 Plotly 차트 생성 및 `docs/topic1/`에 저장 |
+| `analysis/topic2_visualize.py` | `AgeGroupAnalyzer`, `AgeRateBarChart`, `AgeForestChart`, `AgeYearlyTrendChart` 클래스 | **[주제 2]** 세대별 증가율 및 격차 통계 검정 수행, 5개 세대 비교 막대그래프·신뢰구간·연도별 추이선 인터랙티브 Plotly 차트 생성 및 `docs/topic2/`에 저장 |
+| `analysis/build_dashboard.py` | 주제 1과 주제 2의 차트 컴포넌트 호출, KPI 요약 카드 정의, 반응형 레이아웃 구성, 탭 전환 스크립트 빌드 함수 | 6개 인터랙티브 차트와 주요 통계 지표를 결합한 GitHub Pages 배포용 단일 웹 플랫폼(`docs/index.html`) 자동 생성 |
+
+### 4. `docs/` (GitHub Pages 배포 웹 디렉토리)
+| 파일 / 폴더명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
+| :--- | :--- | :--- |
+| `docs/index.html` | Pretendard 웹폰트, KPI 카드 6개, Plotly 인터랙티브 그래프 6개, 반응형 탭 메뉴가 내장된 단일 HTML 웹 대시보드 (225KB) | 사용자가 브라우저에서 2개 연구 주제를 탭으로 넘나들며 확대/축소, 툴팁 확인, SVG 다운로드를 할 수 있는 최종 웹 플랫폼 |
+| `docs/topic1/` | 주제 1 개별 차트 HTML 3개(`distribution`, `forest`, `yearly`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 1 단독 페이지 및 통계 검정 결과 수치 파일 제공 |
+| `docs/topic2/` | 주제 2 개별 차트 HTML 3개(`age_bar`, `age_forest`, `age_trend`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 2 단독 페이지 및 세대별 통계 검정 결과 수치 파일 제공 |
+
+### 5. 기타 설정 파일
+| 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
+| :--- | :--- | :--- |
+| `.gitignore` | `data/raw/LPD/`, `*.docx`, `__pycache__/` 등 제외 규칙 | 대용량 원천 빅데이터와 개인 보고서 초안이 Git 원격 저장소에 커밋되지 않도록 차단 |
+| `README.md` | 프로젝트 개요, 연구 가설 및 결과, OOP 아키텍처 다이어그램, 파일별 상세 설명, 데이터 출처, 실행 가이드 | 프로젝트의 전반적인 기술 내역과 통계적 결론을 안내하는 공식 문서 |
 
 ---
 
