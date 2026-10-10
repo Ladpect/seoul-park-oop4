@@ -1,8 +1,19 @@
 """
-통합 대시보드 생성기: docs/index.html
+[통합 대시보드 빌더] 2개 연구 주제의 인터랙티브 차트 및 통계 지표를 단일 웹 플랫폼으로 통합
 
-주제 1과 주제 2의 인터랙티브 차트들을 단일 정적 웹사이트(GitHub Pages용)로 통합합니다.
-상단 탭(Tab) 메뉴를 통해 주제 1과 주제 2를 부드럽게 전환할 수 있습니다.
+1. 파일 내용 (What is inside):
+   - build_unified_dashboard(): 주제 1과 주제 2의 분석 엔진을 호출하고 6개 차트 컴포넌트를 일괄 조립.
+   - 통계 지표 카드(KPI): 424개 행정동, 봄철 증가율 격차 +2.63%p, 4개년 일관성, 유아동 격차 +4.12%p 등 핵심 지표 템플릿.
+   - 반응형 디자인: Pretendard 폰트, 다크 헤더, 탭 네비게이션, 플롯 반응형 카드 레이아웃.
+   - 탭 전환 JS: 주제 1(계절 변동)과 주제 2(세대별 반응도) 간 즉시 전환 인터랙션.
+
+2. 파일 역할 (Role & Function):
+   - 두 가지 연구 주제의 시각화 결과물을 결합하여 GitHub Pages에 즉시 배포 가능한 최종 단일 페이지 웹사이트(`docs/index.html`)를 자동 생성합니다.
+
+3. 입출력 (I/O):
+   - 입력: data/processed/daytime_weekend_pop.csv, data/processed/daytime_age_pop.csv
+           data/raw/HangJeongDong_ver20260701.geojson
+   - 출력: docs/index.html (224KB 정적 웹 애플리케이션)
 """
 import sys
 from pathlib import Path
@@ -54,11 +65,20 @@ def build_unified_dashboard():
         for i, c in enumerate(t2_charts)
     )
 
-    html_content = f"""<!DOCTYPE html>
+    html_content = f"""<!--
+  =============================================================================
+  서울시 공원과 생활인구 빅데이터 통계 분석 통합 대시보드 (GitHub Pages 배포 웹)
+  - 내용: [주제 1] 공원 유무별 계절 변동(1월 vs 5월) + [주제 2] 세대별 공원 반응도 분석
+  - 역할: 6개 인터랙티브 Plotly 차트, KPI 통계 지표, 반응형 탭 전환을 제공하는 단일 페이지 웹 대시보드
+  - 소스 생성: analysis/build_dashboard.py
+  =============================================================================
+-->
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="서울시 공원 유무에 따른 사계절 생활인구 변동 및 세대별 공원 반응도 빅데이터 통계 분석 대시보드">
   <title>서울시 공원과 생활인구 통계 분석 대시보드</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
   <style>
