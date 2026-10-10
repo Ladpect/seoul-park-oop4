@@ -1,9 +1,23 @@
 """
-주제 1 시각화: 공원 보유 여부에 따른 낮 시간대 생활인구의 계절적 증가폭 (1월 vs 5월)
+[주제 1] 공원 유무별 생활인구 계절 변동 통계 검정 및 Plotly 시각화 모듈
 
-입력: daytime_weekend_pop.csv (newdata.py 출력)
-출력: docs/topic1/*.html  (GitHub Pages용 정적 인터랙티브 그래프, 브라우저에서 SVG 다운로드 가능)
-      docs/topic1/stats_summary.csv
+1. 파일 내용 (What is inside):
+   - Theme: Pretendard 폰트 및 차트 색상(공원 #2a9d8f / 비공원 #e76f51) 스타일 정의.
+   - DongNameLookup: 행정동코드(8자리)를 GeoJSON 기반 행정동명('구 동')으로 변환하는 조회 클래스.
+   - SeasonalChangeAnalyzer: 1월 대비 5월 낮 시간대 인구 증가율 계산, 독립표본 t-검정 및 Mann-Whitney U 검정 통계 엔진.
+   - Chart (추상 기본 클래스): 인터랙티브 그래프 생성(`build()`), 파일 저장(`save()`), HTML div 추출(`to_div()`) 인터페이스 규격화.
+   - RateDistributionChart: 주말·평일·전체 증가율 분포 비교 박스플롯 (개별 행정동 지터 산점도 및 이상치 표기).
+   - DifferenceForestChart: 공원 동 vs 미보유 동의 평균 증가율 격차 및 95% 신뢰구간(CI) 포레스트 플롯.
+   - YearlyTrendChart: 2023년부터 2026년까지 4개년 연속 공원 동 우세 재현성을 검증하는 연도별 추이선 그래프.
+
+2. 파일 역할 (Role & Function):
+   - 혹한기(1월) 대비 봄철(5월) 주말 낮 생활인구가 공원 보유 동에서 유의미하게 더 많이 증가(+2.63%p, p=0.0036)한다는 가설을 입증하고 시각화합니다.
+
+3. 입출력 (I/O):
+   - 입력: data/processed/daytime_weekend_pop.csv
+           data/raw/HangJeongDong_ver20260701.geojson
+   - 출력: docs/topic1/*.html (독립 실행형 차트 HTML)
+           docs/topic1/stats_summary.csv (통계 검정 요약표)
 """
 import json
 from abc import ABC, abstractmethod
