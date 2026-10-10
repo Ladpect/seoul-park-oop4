@@ -1,11 +1,24 @@
 """
-주제 2 전처리: 세대/연령대별 1월·5월 주말 낮 시간대 생활인구 데이터셋 생성
+[주제 2] 세대/연령대별 1월·5월 주말 낮 생활인구 집계 OOP 전처리 파이프라인
 
-newdata.py의 OOP 클래스(CsvSource, HolidayCalendar, ParkMapper 등)를 상속 및 재사용하여
-5개 연령대(유아동, 청소년, 청년, 중장년, 노년)별 인구를 가공합니다.
+1. 파일 내용 (What is inside):
+   - AGE_GROUPS: 5개 생애주기 세대 그룹 정의
+     * kids: 유아동 (0~9세)
+     * teens: 청소년 (10~19세)
+     * youth: 청년층 (20~39세)
+     * middle: 중장년 (40~59세)
+     * senior: 고령층 (60세 이상)
+     * total: 전체 인구 (검증용 합계)
+   - AgeLivingPopSource: CsvSource를 상속받아 32개 성별/연령별 인구 열을 파싱하고 5대 세대 그룹으로 집계하는 로더.
+   - AgePopPreprocessor: newdata.py의 HolidayCalendar, ParkMapper를 재사용하여 세대별 주말 낮 평균 생활인구를 정제하는 파이프라인.
 
-출력: daytime_age_pop.csv
-    dong_cd, year, month, season, is_weekend, age_group, pop, has_park
+2. 파일 역할 (Role & Function):
+   - 봄철 공원 방문을 주도하는 특정 연령층(영유아 가족, 청년층, 고령층)을 규명하기 위해 세대별 세분화 데이터셋을 생성합니다.
+
+3. 입출력 (I/O):
+   - 입력: data/raw/LPD/LOCAL_PEOPLE_DONG_*.csv (원천 생활인구 32개 열)
+           data/raw/park_dong_map.csv (공원-행정동 맵핑)
+   - 출력: data/processed/daytime_age_pop.csv (424개 행정동 x 4개년 x 2개 계절 x 5대 세대 집계 데이터셋, 40,704행)
 """
 import sys
 from dataclasses import dataclass, field
