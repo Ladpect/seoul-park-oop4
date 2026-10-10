@@ -1,8 +1,21 @@
 """
-주제 1 전처리: 공원 보유 여부별 1월·5월 주말 낮 시간대 생활인구 데이터셋 생성
+[주제 1] 서울시 공원 유무별 주말 낮 생활인구 집계 OOP 전처리 파이프라인
 
-출력: daytime_weekend_pop.csv
-    dong_cd, year, month, season, is_weekend, pop, n_days, has_park
+1. 파일 내용 (What is inside):
+   - CsvSource (추상 기본 클래스): CSV 파일 인코딩(cp949/utf-8) 자동 판별 및 행정동 코드 정규화 규격 제공.
+   - LivingPopSource: 서울시 원천 생활인구 CSV에서 일자, 시간대, 행정동코드, 총생활인구수를 추출하는 로더.
+   - ParkMapSource: 서울시 주요 공원 현황 데이터를 로드하고 면적 오류 보정(북한산 등)을 수행하는 로더.
+   - HolidayCalendar: 주말 및 법정공휴일 판별 및 인구 왜곡을 유발하는 설 연휴(2023/2025년) 제외 달력.
+   - ParkMapper: 행정동 불일치 공원(5개소)을 제외하고 행정동별 공원 보유 여부(has_park)를 매핑.
+   - DaytimePopPreprocessor: 혹한기(1월)와 봄철(5월) 낮 시간대(10~17시) 주말·평일 평균 생활인구를 집계하는 파이프라인.
+
+2. 파일 역할 (Role & Function):
+   - 4개년(2023~2026) 1월·5월 원천 생활인구 빅데이터를 정제하여 주제 1의 가설 검정에 필요한 기초 데이터셋을 생성합니다.
+
+3. 입출력 (I/O):
+   - 입력: data/raw/LPD/LOCAL_PEOPLE_DONG_*.csv (원천 생활인구)
+           data/raw/park_dong_map.csv (공원-행정동 맵핑)
+   - 출력: data/processed/daytime_weekend_pop.csv (424개 행정동 x 4개년 x 2개 계절 집계 데이터셋, 6,784행)
 """
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
