@@ -101,7 +101,7 @@ OOP/
 ├── data/
 │   ├── raw/                              # 원천 데이터
 │   │   ├── park_dong_map.csv             # 서울시 주요 공원-행정동 맵핑 데이터
-│   │   ├── HangJeongDong_ver20260701.geojson # 행정동 지리 경계 데이터
+│   │   ├── HangJeongDong_ver20260701.geojson # 행정동 지리 경계 데이터 (admdongkor)
 │   │   └── LPD/                          # (git 제외) 원천 생활인구 월별 CSV들
 │   └── processed/                        # 전처리 및 정제 완료 데이터셋
 │       ├── daytime_weekend_pop.csv       # 주제 1 가공 데이터 (6,784행)
@@ -117,10 +117,17 @@ OOP/
 │   ├── index.html                        # 2개 탭 통합 대시보드 메인
 │   ├── topic1/                           # 주제 1 개별 차트 및 통계표
 │   └── topic2/                           # 주제 2 개별 차트 및 통계표
-├── project_rfp_oop_en.docx               # 프로젝트 제안서(RFP) 문서
-├── .gitignore                            # 대용량 원천 데이터(data/raw/LPD/) 제외 설정
+├── .gitignore                            # 대용량 원천 데이터 및 문서 제외 설정
 └── README.md                             # 프로젝트 기술 문서
 ```
+
+---
+
+## 📊 사용 데이터셋 및 출처 (Data Sources)
+
+1. **메인 데이터셋 (서울시 주요 공원 현황):** 서울 열린데이터 광장 ([data.seoul.go.kr](https://data.seoul.go.kr/))
+2. **추가 데이터셋 1 (서울시 행정동별 생활인구 수):** 서울 열린데이터 광장 (2023~2026 4개년 월별 집계)
+3. **추가 데이터셋 2 (대한민국 행정동 경계 GeoJSON):** [vuski/admdongkor](https://github.com/vuski/admdongkor) (통계청 행정구역 경계 기반 오픈소스 GeoJSON)
 
 ---
 
