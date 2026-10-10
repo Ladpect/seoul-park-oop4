@@ -145,5 +145,5 @@ python build_dashboard.py
 
 ## 👥 팀원 정보 및 역할 분담
 
-* **팀장:** 조윤환 (2025403023 / Ladpect)
-* **팀원:** 조승길 (minmul07), 김민재 (CanelE452), 박태준 (parktj0807), 신동원 (lullasia)
+* **팀장:** 정윤원 (2025403023 / Ladpect)
+* **팀원:** 어승경 (minmul07), 김민재 (CanelE452), 박태준 (parktj0807), 송은빈 (lullasia)
