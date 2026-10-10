@@ -1,0 +1,20 @@
+# 대용량 원천 생활인구 CSV 데이터 (파일당 100MB 초과 및 수 GB 용량)
+LPD/
+*.csv.gz
+*.zip
+
+# Python 캐시 및 가상환경
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# 임시 파일 및 시스템 파일
+~*
+*.tmp
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
