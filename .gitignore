@@ -1,4 +1,5 @@
 # 대용량 원천 생활인구 CSV 데이터 (파일당 100MB 초과 및 수 GB 용량)
+data/raw/LPD/
 LPD/
 *.csv.gz
 *.zip

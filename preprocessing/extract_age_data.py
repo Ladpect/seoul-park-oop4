@@ -7,9 +7,16 @@ newdata.py의 OOP 클래스(CsvSource, HolidayCalendar, ParkMapper 등)를 상�
 출력: daytime_age_pop.csv
     dong_cd, year, month, season, is_weekend, age_group, pop, has_park
 """
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from newdata import CsvSource, HolidayCalendar, ParkMapSource, ParkMapper, PreprocessConfig
 
@@ -29,7 +36,7 @@ AGE_GROUPS = {
 
 @dataclass
 class AgePreprocessConfig(PreprocessConfig):
-    output_file: Path = Path("daytime_age_pop.csv")
+    output_file: Path = PROJECT_ROOT / "data" / "processed" / "daytime_age_pop.csv"
 
 
 # ──────────────────────────────────────────────

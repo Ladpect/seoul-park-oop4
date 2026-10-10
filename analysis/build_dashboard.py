@@ -4,7 +4,15 @@
 주제 1과 주제 2의 인터랙티브 차트들을 단일 정적 웹사이트(GitHub Pages용)로 통합합니다.
 상단 탭(Tab) 메뉴를 통해 주제 1과 주제 2를 부드럽게 전환할 수 있습니다.
 """
+import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from topic1_visualize import (
     SeasonalChangeAnalyzer, DongNameLookup,
     RateDistributionChart, DifferenceForestChart, YearlyTrendChart
@@ -15,13 +23,13 @@ from topic2_visualize import (
 )
 
 def build_unified_dashboard():
-    docs_dir = Path("docs")
+    docs_dir = PROJECT_ROOT / "docs"
     docs_dir.mkdir(parents=True, exist_ok=True)
     
-    names = DongNameLookup(Path("HangJeongDong_ver20260701.geojson"))
+    names = DongNameLookup(PROJECT_ROOT / "data" / "raw" / "HangJeongDong_ver20260701.geojson")
     
     # 주제 1 차트 생성
-    t1_analyzer = SeasonalChangeAnalyzer(Path("daytime_weekend_pop.csv"), names)
+    t1_analyzer = SeasonalChangeAnalyzer(PROJECT_ROOT / "data" / "processed" / "daytime_weekend_pop.csv", names)
     t1_charts = [
         RateDistributionChart(t1_analyzer),
         DifferenceForestChart(t1_analyzer),
@@ -29,7 +37,7 @@ def build_unified_dashboard():
     ]
     
     # 주제 2 차트 생성
-    t2_analyzer = AgeGroupAnalyzer(Path("daytime_age_pop.csv"), names)
+    t2_analyzer = AgeGroupAnalyzer(PROJECT_ROOT / "data" / "processed" / "daytime_age_pop.csv", names)
     t2_charts = [
         AgeRateBarChart(t2_analyzer),
         AgeForestChart(t2_analyzer),

@@ -14,11 +14,13 @@ import pandas as pd
 # ──────────────────────────────────────────────
 # 설정
 # ──────────────────────────────────────────────
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 @dataclass
 class PreprocessConfig:
-    data_dir: Path = Path("LPD")                       # 생활인구 월별 CSV 폴더
-    park_map_file: Path = Path("park_dong_map.csv")
-    output_file: Path = Path("daytime_weekend_pop.csv")
+    data_dir: Path = PROJECT_ROOT / "data" / "raw" / "LPD"
+    park_map_file: Path = PROJECT_ROOT / "data" / "raw" / "park_dong_map.csv"
+    output_file: Path = PROJECT_ROOT / "data" / "processed" / "daytime_weekend_pop.csv"
     years: list = field(default_factory=lambda: [2023, 2024, 2025, 2026])
     months: dict = field(default_factory=lambda: {1: "winter", 5: "spring"})
     hour_start: int = 10                               # 10시대 ~ 17시대 (10:00 ~ 17:59)

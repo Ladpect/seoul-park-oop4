@@ -98,22 +98,28 @@
 
 ```
 OOP/
-├── docs/                             # GitHub Pages 배포용 웹 대시보드
-│   ├── index.html                    # 2개 탭(주제1 + 주제2) 통합 대시보드 메인
-│   ├── topic1/                       # 주제 1 개별 차트 및 통계표 (CSV)
-│   └── topic2/                       # 주제 2 개별 차트 및 통계표 (CSV)
-├── daytime_weekend_pop.csv           # 주제 1 전처리 완료 데이터셋 (6,784행)
-├── daytime_age_pop.csv               # 주제 2 전처리 완료 데이터셋 (40,704행)
-├── park_dong_map.csv                 # 서울시 주요 공원-행정동 맵핑 데이터
-├── HangJeongDong_ver20260701.geojson # 서울시 행정동 경계 및 명칭 매칭 파일
-├── newdata.py                        # 주제 1 OOP 전처리 파이프라인
-├── extract_age_data.py               # 주제 2 OOP 전처리 파이프라인
-├── topic1_visualize.py               # 주제 1 OOP 통계 분석 및 Plotly 시각화 모듈
-├── topic2_visualize.py               # 주제 2 OOP 세대별 분석 및 Plotly 시각화 모듈
-├── build_dashboard.py                # 통합 대시보드(docs/index.html) 빌더 스크립트
-├── project_rfp_oop_en.docx           # 프로젝트 제안서(RFP) 문서
-├── .gitignore                        # 대용량 원천 데이터(LPD/) 및 캐시 제외 설정
-└── README.md                         # 프로젝트 기술 문서
+├── data/
+│   ├── raw/                              # 원천 데이터
+│   │   ├── park_dong_map.csv             # 서울시 주요 공원-행정동 맵핑 데이터
+│   │   ├── HangJeongDong_ver20260701.geojson # 행정동 지리 경계 데이터
+│   │   └── LPD/                          # (git 제외) 원천 생활인구 월별 CSV들
+│   └── processed/                        # 전처리 및 정제 완료 데이터셋
+│       ├── daytime_weekend_pop.csv       # 주제 1 가공 데이터 (6,784행)
+│       └── daytime_age_pop.csv           # 주제 2 세대별 가공 데이터 (40,704행)
+├── preprocessing/                        # 데이터 정제 및 전처리 파이프라인
+│   ├── newdata.py                        # 주제 1 OOP 전처리 스크립트
+│   └── extract_age_data.py               # 주제 2 OOP 세대별 전처리 스크립트
+├── analysis/                             # 통계 분석 및 Plotly 시각화 모듈
+│   ├── topic1_visualize.py               # 주제 1 통계 검정 및 차트 생성
+│   ├── topic2_visualize.py               # 주제 2 세대별 통계 검정 및 차트 생성
+│   └── build_dashboard.py                # 2개 탭 통합 대시보드 빌더
+├── docs/                                 # GitHub Pages 배포 웹 디렉토리
+│   ├── index.html                        # 2개 탭 통합 대시보드 메인
+│   ├── topic1/                           # 주제 1 개별 차트 및 통계표
+│   └── topic2/                           # 주제 2 개별 차트 및 통계표
+├── project_rfp_oop_en.docx               # 프로젝트 제안서(RFP) 문서
+├── .gitignore                            # 대용량 원천 데이터(data/raw/LPD/) 제외 설정
+└── README.md                             # 프로젝트 기술 문서
 ```
 
 ---
@@ -128,17 +134,23 @@ pip install pandas numpy scipy plotly
 
 ### 2. 데이터 전처리 실행
 ```bash
-# 주제 1 데이터 가공 (daytime_weekend_pop.csv 생성)
-python newdata.py
+# 주제 1 데이터 가공 (data/processed/daytime_weekend_pop.csv 생성)
+python preprocessing/newdata.py
 
-# 주제 2 연령별 데이터 가공 (daytime_age_pop.csv 생성)
-python extract_age_data.py
+# 주제 2 연령별 데이터 가공 (data/processed/daytime_age_pop.csv 생성)
+python preprocessing/extract_age_data.py
 ```
 
 ### 3. 시각화 및 통합 대시보드 빌드
 ```bash
-# 주제 1 & 주제 2 분석 및 대시보드 생성 (docs/index.html 생성)
-python build_dashboard.py
+# 주제 1 분석 & 차트 생성
+python analysis/topic1_visualize.py
+
+# 주제 2 분석 & 차트 생성
+python analysis/topic2_visualize.py
+
+# 통합 웹 대시보드 빌드 (docs/index.html 생성)
+python analysis/build_dashboard.py
 ```
 
 ---

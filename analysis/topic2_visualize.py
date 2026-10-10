@@ -5,6 +5,7 @@
 출력: docs/topic2/*.html  (GitHub Pages용 정적 인터랙티브 그래프)
       docs/topic2/stats_summary.csv
 """
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 import json
@@ -14,6 +15,12 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import stats
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from topic1_visualize import Theme, DongNameLookup, Chart
 
@@ -277,11 +284,11 @@ class Topic2Report:
 
 
 if __name__ == "__main__":
-    names = DongNameLookup(Path("HangJeongDong_ver20260701.geojson"))
-    analyzer = AgeGroupAnalyzer(Path("daytime_age_pop.csv"), names)
+    names = DongNameLookup(PROJECT_ROOT / "data" / "raw" / "HangJeongDong_ver20260701.geojson")
+    analyzer = AgeGroupAnalyzer(PROJECT_ROOT / "data" / "processed" / "daytime_age_pop.csv", names)
     charts = [
         AgeRateBarChart(analyzer),
         AgeForestChart(analyzer),
         AgeYearlyTrendChart(analyzer),
     ]
-    Topic2Report(analyzer, charts, Path("docs/topic2")).export()
+    Topic2Report(analyzer, charts, PROJECT_ROOT / "docs" / "topic2").export()

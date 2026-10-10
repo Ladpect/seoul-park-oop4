@@ -15,6 +15,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import stats
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 WEEKEND, WEEKDAY, ALL_DAYS = "주말·공휴일", "평일", "전체"
 DAY_TYPES = [WEEKEND, WEEKDAY, ALL_DAYS]
 PARK_LABEL = {True: "공원 있음", False: "공원 없음"}
@@ -303,8 +305,8 @@ class Topic1Report:
 
 
 if __name__ == "__main__":
-    names = DongNameLookup(Path("HangJeongDong_ver20260701.geojson"))
-    analyzer = SeasonalChangeAnalyzer(Path("daytime_weekend_pop.csv"), names)
+    names = DongNameLookup(PROJECT_ROOT / "data" / "raw" / "HangJeongDong_ver20260701.geojson")
+    analyzer = SeasonalChangeAnalyzer(PROJECT_ROOT / "data" / "processed" / "daytime_weekend_pop.csv", names)
     charts = [RateDistributionChart(analyzer), DifferenceForestChart(analyzer), YearlyTrendChart(analyzer)]
-    Topic1Report(analyzer, charts, Path("docs/topic1")).export()
+    Topic1Report(analyzer, charts, PROJECT_ROOT / "docs" / "topic1").export()
     print(analyzer.summary()[["day_type", "period", "diff", "ci_low", "ci_high", "p_welch", "p_mwu"]].round(4).to_string())
