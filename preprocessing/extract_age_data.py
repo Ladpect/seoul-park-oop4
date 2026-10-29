@@ -31,7 +31,14 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(Path(__file__).resolve().parent) not in sys.path:
     sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from newdata import CsvSource, HolidayCalendar, ParkMapSource, ParkMapper, PreprocessConfig
+from newdata import (
+    CsvSource,
+    HolidayCalendar,
+    ParkMapSource,
+    ParkMapper,
+    PreprocessConfig,
+    DaytimePopPreprocessor,
+)
 
 
 # ──────────────────────────────────────────────
@@ -98,43 +105,21 @@ class AgeLivingPopSource(CsvSource):
 
 
 # ──────────────────────────────────────────────
-# 연령별 전처리 파이프라인
+# 연령별 전처리 파이프라인 (상속을 통한 단순화)
 # ──────────────────────────────────────────────
-class AgePopPreprocessor:
-    """월별 연령별 생활인구 가공 및 동별/연령대별 평균 집계"""
+class AgePopPreprocessor(DaytimePopPreprocessor):
+    """월별 연령별 생활인구 가공 및 동별/연령대별 평균 집계 (DaytimePopPreprocessor 상속)"""
 
-    def __init__(self, config: AgePreprocessConfig, calendar: HolidayCalendar):
-        self.config = config
-        self.calendar = calendar
-        self.result = None
-
-    def _sources(self):
-        for year in self.config.years:
-            for month in self.config.months:
-                fpath = self.config.data_dir / f"LOCAL_PEOPLE_DONG_{year}{month:02d}.csv"
-                try:
-                    yield AgeLivingPopSource(fpath, year, month)
-                except FileNotFoundError as e:
-                    print(f"[경고] {e}")
+    source_cls = AgeLivingPopSource
 
     def _process(self, source: AgeLivingPopSource) -> pd.DataFrame:
-        df = source.load()
+        df = self._filter_common(source.load())
 
-        # 1. 낮 시간대 필터링 (10~17시)
-        df = df[df["hour"].between(self.config.hour_start, self.config.hour_end)]
-
-        # 2. 설 연휴 제외
-        excluded = self.calendar.is_excluded(df["date"])
-        df = df[~excluded].copy()
-
-        # 3. 휴일/주말 여부
-        df["is_weekend"] = self.calendar.is_rest_day(df["date"])
-
-        # 4. [행정동, 주말여부] 단위 각 연령별 평균 산출
+        # [행정동, 주말여부] 단위 각 연령별 평균 산출
         age_cols = ["kids", "teens", "youth", "middle", "senior", "total"]
         grouped = df.groupby(["dong_cd", "is_weekend"])[age_cols].mean().reset_index()
 
-        # 5. Long-format 변환 (동, 주말, 연령대, 인구)
+        # Long-format 변환 (동, 주말, 연령대, 인구)
         melted = pd.melt(
             grouped,
             id_vars=["dong_cd", "is_weekend"],
@@ -147,30 +132,6 @@ class AgePopPreprocessor:
         melted.insert(2, "month", source.month)
         melted.insert(3, "season", self.config.months[source.month])
         return melted
-
-    def run(self, park_mapper: ParkMapper) -> pd.DataFrame:
-        records = []
-        for source in self._sources():
-            print(f"[{source.year}{source.month:02d}] 연령 데이터 처리 중: {source.fpath.name}")
-            records.append(self._process(source))
-
-        if not records:
-            raise RuntimeError("처리된 파일이 없습니다.")
-
-        df = pd.concat(records, ignore_index=True)
-
-        # 공원 보유 여부 매핑
-        park_mapper.restrict_to(set(df["dong_cd"]))
-        df["has_park"] = park_mapper.has_park(df["dong_cd"])
-
-        self.result = df
-        return df
-
-    def save(self) -> None:
-        if self.result is None:
-            raise RuntimeError("run()을 먼저 실행하세요.")
-        self.result.to_csv(self.config.output_file, index=False, encoding="utf-8-sig")
-        print(f"[완료] {self.config.output_file} 생성 (총 {len(self.result):,}행)")
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from topic1_visualize import Theme, DongNameLookup, Chart
+from topic1_visualize import Theme, DongNameLookup, Chart, BaseAnalyzer, ReportExporter
 
 PARK_LABEL = {True: "공원 있음", False: "공원 없음"}
 AGE_ORDER = [
@@ -56,9 +56,9 @@ AGE_COLORS = {
 
 
 # ──────────────────────────────────────────────
-# 연령별 분석 클래스
+# 연령별 분석 클래스 (BaseAnalyzer 상속)
 # ──────────────────────────────────────────────
-class AgeGroupAnalyzer:
+class AgeGroupAnalyzer(BaseAnalyzer):
     """연령대별 1월 대비 5월 생활인구 증가율 및 통계 검정"""
 
     def __init__(self, csv_path: Path, names: DongNameLookup):
@@ -74,20 +74,6 @@ class AgeGroupAnalyzer:
         p = p.rename(columns={1: "jan", 5: "may"})
         p["rate"] = (p["may"] / p["jan"] - 1) * 100
         return p
-
-    @staticmethod
-    def compare(rates: pd.DataFrame) -> dict:
-        """공원 보유 동 vs 미보유 동 비교 통계 (Welch t 95% CI, Mann-Whitney U)"""
-        a = rates.loc[rates["has_park"], "rate"]
-        b = rates.loc[~rates["has_park"], "rate"]
-        t = stats.ttest_ind(a, b, equal_var=False)
-        ci = t.confidence_interval(0.95)
-        return {
-            "n_park": len(a), "n_none": len(b),
-            "mean_park": a.mean(), "mean_none": b.mean(),
-            "diff": a.mean() - b.mean(), "ci_low": ci.low, "ci_high": ci.high,
-            "p_welch": t.pvalue, "p_mwu": stats.mannwhitneyu(a, b).pvalue,
-        }
 
     def summary(self, weekend_only: bool = True) -> pd.DataFrame:
         """연령대별 x (연도별 + 4개년) 비교 요약표"""
@@ -108,10 +94,6 @@ class AgeRateBarChart(Chart):
     """연령대별 공원 보유 vs 미보유 행정동의 1월→5월 증가율 비교 막대"""
 
     filename = "topic2_age_bar"
-
-    def __init__(self, analyzer: AgeGroupAnalyzer):
-        self.analyzer = analyzer
-        self._fig = None
 
     def build(self) -> go.Figure:
         s = self.analyzer.summary()
@@ -165,10 +147,6 @@ class AgeForestChart(Chart):
 
     filename = "topic2_age_forest"
 
-    def __init__(self, analyzer: AgeGroupAnalyzer):
-        self.analyzer = analyzer
-        self._fig = None
-
     def build(self) -> go.Figure:
         s = self.analyzer.summary()
         pooled = s[s["period"] == "4개년"].set_index("age_group").loc[AGE_ORDER[::-1]].reset_index()
@@ -209,10 +187,6 @@ class AgeYearlyTrendChart(Chart):
 
     filename = "topic2_age_trend"
 
-    def __init__(self, analyzer: AgeGroupAnalyzer):
-        self.analyzer = analyzer
-        self._fig = None
-
     def build(self) -> go.Figure:
         r = self.analyzer.rates(weekend_only=True, by_year=True)
         target_ages = ["유아동 (0~9세)", "청년층 (20~39세)", "고령층 (60세 이상)"]
@@ -246,53 +220,13 @@ class AgeYearlyTrendChart(Chart):
 
 
 # ──────────────────────────────────────────────
-# 리포트 내보내기 클래스
+# 리포트 내보내기 클래스 (ReportExporter 상속)
 # ──────────────────────────────────────────────
-class Topic2Report:
-    """주제 2 차트 및 통계표 파일 생성"""
+class Topic2Report(ReportExporter):
+    """주제 2 차트 및 통계표 파일 생성 (ReportExporter 상속)"""
 
-    def __init__(self, analyzer: AgeGroupAnalyzer, charts: list, out_dir: Path):
-        self.analyzer = analyzer
-        self.charts = charts
-        self.out_dir = Path(out_dir)
-
-    def export(self) -> None:
-        self.out_dir.mkdir(parents=True, exist_ok=True)
-        for chart in self.charts:
-            path = chart.save(self.out_dir)
-            print(f"  [주제2 차트 저장] {path}")
-        self._export_stats()
-        self._export_preview()
-
-    def _export_stats(self) -> None:
-        path = self.out_dir / "stats_summary.csv"
-        self.analyzer.summary().round(4).to_csv(path, index=False, encoding="utf-8-sig")
-        print(f"  [주제2 통계표 저장] {path}")
-
-    def _export_preview(self) -> None:
-        divs = "\n".join(
-            f"<section class='card'>{c.to_div(include_js=(i == 0))}</section>"
-            for i, c in enumerate(self.charts)
-        )
-        html = f"""<!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>주제 2 · 세대별 공원 반응도 분석</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
-<style>
- body {{ margin:0; background:#f3f4f6; font-family:{Theme.FONT}; color:#1f2937; }}
- header {{ padding:40px 24px 8px; max-width:1100px; margin:auto; }}
- h1 {{ font-size:26px; margin:0 0 6px; }}
- header p {{ color:#6b7280; margin:0; }}
- main {{ max-width:1100px; margin:auto; padding:16px 24px 48px; display:grid; gap:24px; }}
- .card {{ background:#fff; border-radius:16px; box-shadow:0 4px 18px rgba(0,0,0,.06); padding:8px; }}
-</style></head><body>
-<header><h1>세대/연령대별 공원 반응도 분석</h1>
-<p>서울시 424개 행정동 · 2023~2026년 주말 낮(10~17시) 1월 vs 5월 비교</p></header>
-<main>{divs}</main></body></html>"""
-        path = self.out_dir / "index.html"
-        path.write_text(html, encoding="utf-8")
-        print(f"  [주제2 미리보기 저장] {path}")
+    title = "세대/연령대별 공원 반응도 분석"
+    subtitle = "서울시 424개 행정동 · 2023~2026년 주말 낮(10~17시) 1월 vs 5월 비교"
 
 
 if __name__ == "__main__":

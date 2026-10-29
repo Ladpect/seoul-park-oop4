@@ -78,9 +78,35 @@ class DongNameLookup:
 
 
 # ──────────────────────────────────────────────
-# 분석
+# 분석 엔진 기반 및 구현
 # ──────────────────────────────────────────────
-class SeasonalChangeAnalyzer:
+class BaseAnalyzer(ABC):
+    """통계 분석 엔진 추상 기본 클래스 (Welch t-검정 및 Mann-Whitney U 검정 표준화)"""
+
+    @staticmethod
+    def compare(rates: pd.DataFrame) -> dict:
+        """공원 있음 vs 미보유 행정동 간 평균 증가율 차이 및 통계적 유의성 검정 (Welch t 95% CI, Mann-Whitney U)"""
+        a = rates.loc[rates["has_park"], "rate"]
+        b = rates.loc[~rates["has_park"], "rate"]
+        t = stats.ttest_ind(a, b, equal_var=False)
+        ci = t.confidence_interval(0.95)
+        return {
+            "n_park": len(a), "n_none": len(b),
+            "mean_park": a.mean(), "mean_none": b.mean(),
+            "diff": a.mean() - b.mean(), "ci_low": ci.low, "ci_high": ci.high,
+            "p_welch": t.pvalue, "p_mwu": stats.mannwhitneyu(a, b).pvalue,
+        }
+
+    @abstractmethod
+    def rates(self, **kwargs) -> pd.DataFrame:
+        ...
+
+    @abstractmethod
+    def summary(self, **kwargs) -> pd.DataFrame:
+        ...
+
+
+class SeasonalChangeAnalyzer(BaseAnalyzer):
     """행정동별 1월 → 5월 생활인구 증가율 계산 및 공원 유무 그룹 비교"""
 
     def __init__(self, csv_path: Path, names: DongNameLookup):
@@ -109,20 +135,6 @@ class SeasonalChangeAnalyzer:
         p = p.rename(columns={1: "jan", 5: "may"})
         p["rate"] = (p["may"] / p["jan"] - 1) * 100
         return p
-
-    @staticmethod
-    def compare(rates: pd.DataFrame) -> dict:
-        """공원 있음 − 공원 없음 평균 증가율 차이 (Welch t 95% CI, Mann-Whitney U)"""
-        a = rates.loc[rates["has_park"], "rate"]
-        b = rates.loc[~rates["has_park"], "rate"]
-        t = stats.ttest_ind(a, b, equal_var=False)
-        ci = t.confidence_interval(0.95)
-        return {
-            "n_park": len(a), "n_none": len(b),
-            "mean_park": a.mean(), "mean_none": b.mean(),
-            "diff": a.mean() - b.mean(), "ci_low": ci.low, "ci_high": ci.high,
-            "p_welch": t.pvalue, "p_mwu": stats.mannwhitneyu(a, b).pvalue,
-        }
 
     def summary(self) -> pd.DataFrame:
         """요일유형 × (연도별 + 4개년) 비교 결과표"""
@@ -272,17 +284,21 @@ class YearlyTrendChart(Chart):
 
 
 # ──────────────────────────────────────────────
-# 리포트
+# 리포트 내보내기 공통 기반 및 주제 1 리포터
 # ──────────────────────────────────────────────
-class Topic1Report:
-    """차트 묶음을 개별 HTML + 통합 미리보기 페이지 + 통계표로 내보내기"""
+class ReportExporter:
+    """차트 묶음 HTML + 통계표 CSV + 단독 미리보기 웹페이지 통합 내보내기 공통 기반 클래스"""
 
-    def __init__(self, analyzer: SeasonalChangeAnalyzer, charts: list, out_dir: Path):
+    title: str = "분석 리포트"
+    subtitle: str = ""
+
+    def __init__(self, analyzer: BaseAnalyzer, charts: list, out_dir: Path):
         self.analyzer = analyzer
         self.charts = charts
         self.out_dir = Path(out_dir)
 
     def export(self) -> None:
+        self.out_dir.mkdir(parents=True, exist_ok=True)
         for chart in self.charts:
             print(f"  저장: {chart.save(self.out_dir)}")
         self._export_stats()
@@ -300,7 +316,7 @@ class Topic1Report:
         html = f"""<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>주제 1 · 공원 유무와 계절별 생활인구</title>
+<title>{self.title}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
 <style>
  body {{ margin:0; background:#f3f4f6; font-family:{Theme.FONT}; color:#1f2937; }}
@@ -310,12 +326,19 @@ class Topic1Report:
  main {{ max-width:1100px; margin:auto; padding:16px 24px 48px; display:grid; gap:24px; }}
  .card {{ background:#fff; border-radius:16px; box-shadow:0 4px 18px rgba(0,0,0,.06); padding:8px; }}
 </style></head><body>
-<header><h1>공원 보유 여부에 따른 낮 시간대 생활인구의 계절적 증가폭</h1>
-<p>서울시 424개 행정동 · 2023~2026년 1월 vs 5월 · 10~17시</p></header>
+<header><h1>{self.title}</h1>
+<p>{self.subtitle}</p></header>
 <main>{divs}</main></body></html>"""
         path = self.out_dir / "index.html"
         path.write_text(html, encoding="utf-8")
         print(f"  저장: {path}")
+
+
+class Topic1Report(ReportExporter):
+    """주제 1 전용 리포트 내보내기 (ReportExporter 상속)"""
+
+    title = "공원 보유 여부에 따른 낮 시간대 생활인구의 계절적 증가폭"
+    subtitle = "서울시 424개 행정동 · 2023~2026년 1월 vs 5월 · 10~17시"
 
 
 if __name__ == "__main__":

@@ -113,6 +113,8 @@ OOP/
 │   └── build_dashboard.py                # 통합 웹 대시보드 빌더
 ├── docs/                                 # GitHub Pages 배포 디렉토리
 │   ├── index.html                        # 2개 탭 통합 대시보드 메인 웹 애플리케이션
+│   ├── PRESENTATION_MASTER_GUIDE.md      # 🏆 [발표·PPT 마스터] 전체 실행 흐름 + 2023 분석 + 7대 클래스 상세 템플릿
+│   ├── TEAM_OOP_GUIDE.md                 # 팀원용 SOLID 원칙 & 클래스 입출력 상세 가이드
 │   ├── topic1/                           # 주제 1 개별 차트 HTML 및 통계표 CSV
 │   └── topic2/                           # 주제 2 개별 차트 HTML 및 통계표 CSV
 ├── .gitignore                            # 대용량 원천 데이터(LPD/) 및 로컬 문서 제외
@@ -146,6 +148,7 @@ OOP/
 | 파일 / 폴더명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
 | `docs/index.html` | Pretendard 웹폰트, KPI 카드 6개, Plotly 인터랙티브 그래프 6개, 반응형 탭 메뉴가 내장된 단일 HTML 웹 대시보드 (225KB) | 사용자가 브라우저에서 2개 연구 주제를 탭으로 넘나들며 확대/축소, 툴팁 확인, SVG 다운로드를 할 수 있는 최종 웹 플랫폼 |
+| `docs/TEAM_OOP_GUIDE.md` | 모든 클래스(25개)의 SOLID 원칙 매핑, 입·출력 스키마, 처리 과정 상세 명세 | 팀원들의 OOP 설계 원칙 이해, 보고서 작성 및 발표를 위한 공식 가이드 문서 |
 | `docs/topic1/` | 주제 1 개별 차트 HTML 3개(`distribution`, `forest`, `yearly`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 1 단독 페이지 및 통계 검정 결과 수치 파일 제공 |
 | `docs/topic2/` | 주제 2 개별 차트 HTML 3개(`age_bar`, `age_forest`, `age_trend`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 2 단독 페이지 및 세대별 통계 검정 결과 수치 파일 제공 |
 

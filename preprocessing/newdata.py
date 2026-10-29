@@ -175,6 +175,8 @@ class ParkMapper:
 class DaytimePopPreprocessor:
     """월별 생활인구 → [행정동, 연, 월, 주말여부] 단위 낮 시간대 평균 생활인구"""
 
+    source_cls = LivingPopSource
+
     def __init__(self, config: PreprocessConfig, calendar: HolidayCalendar):
         self.config = config
         self.calendar = calendar
@@ -185,26 +187,24 @@ class DaytimePopPreprocessor:
             for month in self.config.months:
                 fpath = self.config.data_dir / f"LOCAL_PEOPLE_DONG_{year}{month:02d}.csv"
                 try:
-                    yield LivingPopSource(fpath, year, month)
+                    yield self.source_cls(fpath, year, month)
                 except FileNotFoundError as e:
                     print(f"[경고] {e}")
 
-    def _process(self, source: LivingPopSource) -> pd.DataFrame:
-        df = source.load()
-
-        # 1. 낮 시간대 필터링
+    def _filter_common(self, df: pd.DataFrame) -> pd.DataFrame:
+        """낮 시간대 필터링(10~17시), 설 연휴 제외, 주말·공휴일 여부 판별 공통 처리"""
         df = df[df["hour"].between(self.config.hour_start, self.config.hour_end)]
-
-        # 2. 설 연휴 제외
         excluded = self.calendar.is_excluded(df["date"])
         if excluded.any():
             print(f"    설 연휴 {df.loc[excluded, 'date'].nunique()}일 제외")
         df = df[~excluded].copy()
-
-        # 3. 주말 여부 (토·일·공휴일 = True)
         df["is_weekend"] = self.calendar.is_rest_day(df["date"])
+        return df
 
-        # 4. [행정동, 주말여부] 단위 시간당 평균 생활인구
+    def _process(self, source: LivingPopSource) -> pd.DataFrame:
+        df = self._filter_common(source.load())
+
+        # [행정동, 주말여부] 단위 시간당 평균 생활인구
         grouped = (
             df.groupby(["dong_cd", "is_weekend"])
             .agg(pop=("pop", "mean"), n_days=("date", "nunique"))
