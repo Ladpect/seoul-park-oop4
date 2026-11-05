@@ -171,30 +171,40 @@ OOP/
 ## 🛠️ 실행 방법 (How to Run)
 
 ### 1. 환경 설정
-Python 3.10 이상 권장
+Python 3.13과 [uv](https://docs.astral.sh/uv/getting-started/installation/)를 사용합니다.
+uv 설치 후 프로젝트 루트에서 실행하세요.
 ```bash
-pip install pandas numpy scipy plotly
+uv sync --locked
 ```
+
+uv가 필요한 Python 3.13과 `.venv` 가상환경을 자동으로 준비합니다.
+`pyproject.toml`은 의존성을 선언하고, `uv.lock`은 실제 설치 버전을 고정합니다.
+두 파일과 `.python-version`은 Git으로 공유하며, `.venv/`는 커밋하지 않습니다.
+Python 3.13에서 검증한 의존성은 NumPy 2.5.4, pandas 3.1.1, SciPy 1.18.1, Plotly 7.1.0입니다.
+의존성의 최소 버전은 이 검증 버전으로 설정하며, 다음 주요 버전으로의 자동 업그레이드는 제한합니다.
+
+의존성을 추가하거나 제거할 때는 `uv add 패키지명` / `uv remove 패키지명`을 사용하고,
+변경된 `pyproject.toml`과 `uv.lock`을 함께 커밋하세요.
 
 ### 2. 데이터 전처리 실행
 ```bash
 # 주제 1 데이터 가공 (data/processed/daytime_weekend_pop.csv 생성)
-python preprocessing/newdata.py
+uv run preprocessing/newdata.py
 
 # 주제 2 연령별 데이터 가공 (data/processed/daytime_age_pop.csv 생성)
-python preprocessing/extract_age_data.py
+uv run preprocessing/extract_age_data.py
 ```
 
 ### 3. 시각화 및 통합 대시보드 빌드
 ```bash
 # 주제 1 분석 & 차트 생성
-python analysis/topic1_visualize.py
+uv run analysis/topic1_visualize.py
 
 # 주제 2 분석 & 차트 생성
-python analysis/topic2_visualize.py
+uv run analysis/topic2_visualize.py
 
 # 통합 웹 대시보드 빌드 (docs/index.html 생성)
-python analysis/build_dashboard.py
+uv run analysis/build_dashboard.py
 ```
 
 ---
