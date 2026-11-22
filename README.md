@@ -38,21 +38,6 @@
 
 ---
 
-## 구현 과정에서 고려한 사항
-
-* **데이터 왜곡 제거**
-  * `HolidayCalendar`에서 2023·2025년 설 연휴 기간(귀성 이동으로 인한 서울 인구 급감 구간)을 제외하고, 토·일요일과 법정 공휴일을 휴일 그룹(`is_weekend=True`)으로 통합했습니다.
-  * `ParkMapSource`에서 면적 단위 오류가 있던 북한산국립공원 데이터를 보정하고, 생활인구 데이터에 존재하지 않는 개편 행정동 코드의 공원 5개소는 `ParkMapper.restrict_to()`에서 분리 제외(원본 `parks` DataFrame은 유지)했습니다.
-* **지리 데이터 경량화 및 코드 매핑 보정**
-  * 전국 행정동 경계 GeoJSON(약 34.6MB)에서 서울 424개 동만 추출하고 좌표를 반올림한 `data/processed/seoul_dongs.geojson`(약 420KB)과 25개 자치구 외곽 경계(`data/processed/seoul_gus.geojson`)를 분리 생성해 로딩 부담을 줄였습니다.
-  * 생활인구 구 코드와 2026년 GeoJSON 개편 코드 차이로 누락되던 9개 동(강북구 번1~3·수유1~3동, 동대문구 용신동, 강남구 개포3동, 강동구 상일동)을 매핑 테이블(`CODE_REMAP`)로 연결해 지도 빈칸과 이름 누락을 해결했습니다.
-  * 로컬 `file://` 환경에서 타일·Web Worker 차단 영향을 받지 않도록 Plotly의 순수 벡터 SVG 지도(`go.Choropleth`, `go.Scattergeo`)를 사용했습니다.
-* **객체지향 구조 및 테스트 가능성**
-  * 전처리(`CsvSource` → `MonthlyPopSource` → `LivingPopSource` / `AgeLivingPopSource`, `BasePreprocessor` → `DaytimePopPreprocessor` → `AgePopPreprocessor`)와 분석(`NameLookup` 프로토콜, `BaseAnalyzer` → `SeasonalChangeAnalyzer` / `AgeGroupAnalyzer`), 시각화(`Chart` → 5개 차트 클래스), 대시보드 조립(`DashboardBuilder`)으로 역할을 나눴습니다.
-  * 외부 파일 경로나 GeoJSON 대신 인메모리 가짜 소스·조회 객체를 주입해 `tests/` 단위 테스트(6개)를 바로 실행할 수 있도록 구성했습니다.
-
----
-
 ## 사용 기술
 
 * Python 3.13, uv
