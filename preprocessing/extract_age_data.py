@@ -3,47 +3,29 @@
 
 1. 파일 내용 (What is inside):
    - AGE_GROUPS: 5개 생애주기 세대 그룹 정의
-     * kids: 유아동 (0~9세)
-     * teens: 청소년 (10~19세)
-     * youth: 청년층 (20~39세)
-     * middle: 중장년 (40~59세)
-     * senior: 고령층 (60세 이상)
-     * total: 전체 인구 (검증용 합계)
-   - AgeLivingPopSource: CsvSource를 상속받아 32개 성별/연령별 인구 열을 파싱하고 5대 세대 그룹으로 집계하는 로더.
-   - AgePopPreprocessor: newdata.py의 HolidayCalendar, ParkMapper를 재사용하여 세대별 주말 낮 평균 생활인구를 정제하는 파이프라인.
-
-2. 파일 역할 (Role & Function):
-   - 봄철 공원 방문을 주도하는 특정 연령층(영유아 가족, 청년층, 고령층)을 규명하기 위해 세대별 세분화 데이터셋을 생성합니다.
-
-3. 입출력 (I/O):
-   - 입력: data/raw/LPD/LOCAL_PEOPLE_DONG_*.csv (원천 생활인구 32개 열)
-           data/raw/park_dong_map.csv (공원-행정동 맵핑)
-   - 출력: data/processed/daytime_age_pop.csv (424개 행정동 x 4개년 x 2개 계절 x 5대 세대 집계 데이터셋, 40,704행)
+   - AgeLivingPopSource: MonthlyPopSource를 상속받아 32개 성별/연령별 인구 열을 파싱하고 5대 세대로 합산.
+   - AgePopPreprocessor: DaytimePopPreprocessor를 상속받아 세대별 주말 낮 평균 생활인구를 Tidy 포맷으로 정제.
 """
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
+
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-if str(Path(__file__).resolve().parent) not in sys.path:
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
+PREPROC_DIR = Path(__file__).resolve().parent
+if str(PREPROC_DIR) not in sys.path:
+    sys.path.insert(0, str(PREPROC_DIR))
 
 from newdata import (
-    CsvSource,
+    DaytimePopPreprocessor,
     HolidayCalendar,
+    MonthlyPopSource,
     ParkMapSource,
     ParkMapper,
     PreprocessConfig,
-    DaytimePopPreprocessor,
 )
 
-
-# ──────────────────────────────────────────────
-# 연령 그룹 정의 및 설정
-# ──────────────────────────────────────────────
 AGE_GROUPS = {
     "kids": "유아동 (0~9세)",
     "teens": "청소년 (10~19세)",
@@ -59,39 +41,20 @@ class AgePreprocessConfig(PreprocessConfig):
     output_file: Path = PROJECT_ROOT / "data" / "processed" / "daytime_age_pop.csv"
 
 
-# ──────────────────────────────────────────────
-# 연령별 생활인구 데이터 소스 (상속)
-# ──────────────────────────────────────────────
-class AgeLivingPopSource(CsvSource):
+class AgeLivingPopSource(MonthlyPopSource):
     """32개 전체 열(성별/연령별 생활인구)을 로드하고 5개 세대 그룹으로 집계"""
 
-    def __init__(self, fpath: Path, year: int, month: int):
-        super().__init__(fpath)
-        self.year = year
-        self.month = month
-
     def load(self) -> pd.DataFrame:
-        df = pd.read_csv(
-            self.fpath,
-            encoding=self.encoding,
-            encoding_errors="replace",
-            index_col=False,
-            skiprows=1,
-            header=None,
-            dtype=str,
-        )
-        # 0: 일자, 1: 시간, 2: 행정동코드
+        df = self._read_raw()
         df[0] = pd.to_datetime(df[0].str.strip(), format="%Y%m%d", errors="coerce")
         df[1] = pd.to_numeric(df[1], errors="coerce")
         df[2] = self.normalize_dong_cd(df[2])
 
-        # 3~31번 열(생활인구) 수치 변환
         for c in range(3, 32):
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
         df = df.dropna(subset=[0, 1, 2, 3])
 
-        # 연령대별 합산
         df["kids"] = df[4] + df[18]
         df["teens"] = df[5] + df[6] + df[19] + df[20]
         df["youth"] = df[7] + df[8] + df[9] + df[10] + df[21] + df[22] + df[23] + df[24]
@@ -104,22 +67,17 @@ class AgeLivingPopSource(CsvSource):
         )
 
 
-# ──────────────────────────────────────────────
-# 연령별 전처리 파이프라인 (상속을 통한 단순화)
-# ──────────────────────────────────────────────
 class AgePopPreprocessor(DaytimePopPreprocessor):
     """월별 연령별 생활인구 가공 및 동별/연령대별 평균 집계 (DaytimePopPreprocessor 상속)"""
 
     source_cls = AgeLivingPopSource
 
-    def _process(self, source: AgeLivingPopSource) -> pd.DataFrame:
+    def _process(self, source: MonthlyPopSource) -> pd.DataFrame:
         df = self._filter_common(source.load())
 
-        # [행정동, 주말여부] 단위 각 연령별 평균 산출
         age_cols = ["kids", "teens", "youth", "middle", "senior", "total"]
         grouped = df.groupby(["dong_cd", "is_weekend"])[age_cols].mean().reset_index()
 
-        # Long-format 변환 (동, 주말, 연령대, 인구)
         melted = pd.melt(
             grouped,
             id_vars=["dong_cd", "is_weekend"],

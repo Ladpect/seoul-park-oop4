@@ -15,22 +15,22 @@
 ## 🎯 연구 주제 및 핵심 분석 결과
 
 ### 📊 [주제 1] 공원 유무에 따른 계절(혹한기 1월 vs 봄철 5월) 생활인구 변동 비교
-* **가설:** 혹한기(1월) 대비 나들이철(5월) 주말 낮 시간대(10~17시) 생활인구의 증가폭은 공원을 보유한 행정동이 비보유 행정동보다 유의미하게 클 것이다.
-* **통계적 검정 결과 (4개년 424개 행정동):**
+* **가설:** 혹한기(1월) 대비 나들이철(5월) 주말 낮 시간대(10~17시) 생활인구의 증가폭은 공원을 보유한 행정동이 비보유 행정동보다 클 것이다.
+* **분석 결과 (4개년 424개 행정동 평균):**
   * **공원 보유 행정동 (102개):** 평균 **+0.18%**
   * **공원 미보유 행정동 (322개):** 평균 **-2.45%**
-  * **계절 증가율 격차:** **+2.63%p** ($t = 2.97$, $p = 0.0036$, Mann-Whitney U $p = 0.0060$)
-  * **연도별 재현성:** 2023년(+1.62%p), 2024년(+2.50%p), 2025년(+3.29%p), 2026년(+3.09%p) **4개년 매년 공원 동의 증가율이 일관되게 우세 ($p < 0.05$)**.
+  * **계절 증가율 격차:** **+2.63%p**
+  * **연도별 재현성:** 2023년(+1.62%p), 2024년(+2.50%p), 2025년(+3.29%p), 2026년(+3.09%p) **4개년 매년 공원 동의 증가율이 일관되게 우세**.
 
-### 👥 [주제 2] 세대/연령대별 공원 반응도 분석
+### 👥 [주제 2] 세대/연령대별 공원 반응도 분석 (주말·공휴일 낮 10~17시 기준)
 * **가설:** 봄철 공원 보유 행정동으로의 인구 유입 증가는 특정 연령층(영유아 가족, 청년층, 고령층)이 주도할 것이다.
-* **통계적 검정 결과 (4개년 세대별 분석):**
-  1. **유아동 (0~9세):** 공원 보유 동(+3.56%) vs 미보유 동(-0.56%) → **격차 +4.12%p ($p = 0.0107$)**  
-     * 전 세대 중 가장 극적인 격차를 기록하며, **봄철 공원의 1순위 유인 계층은 영유아·어린이 동반 가족**임을 입증.
-  2. **청년층 (20~39세):** 공원 보유 동(+1.85%) vs 미보유 동(-0.97%) → **격차 +2.82%p ($p = 0.0148$)**  
-     * 주말 피크닉 및 야외 데이트 인구의 공원 선호 확인.
-  3. **고령층 (60세 이상):** 공원 보유 동(-3.33%) vs 미보유 동(-5.50%) → **격차 +2.16%p ($p = 0.0018$)**  
-     * 4개년 모든 해에서 $p < 0.04$로 가장 일관된 산책 및 건강 활동 보존 효과 확인.
+* **분석 결과 (4개년 세대별 평균):**
+  1. **유아동 (0~9세):** 공원 보유 동(+3.27%) vs 미보유 동(-0.81%) → **격차 +4.08%p**
+     * 전 세대 중 가장 큰 격차를 기록하며, **봄철 공원의 1순위 유인 계층은 영유아·어린이 동반 가족**임을 확인.
+  2. **청년층 (20~39세):** 공원 보유 동(+1.70%) vs 미보유 동(-1.11%) → **격차 +2.80%p**
+     * 주말 피크닉 및 야외 활동 인구의 공원 선호 확인.
+  3. **고령층 (60세 이상):** 공원 보유 동(-3.46%) vs 미보유 동(-5.63%) → **격차 +2.17%p**
+     * 4개년 모든 해에서 산책 및 건강 활동 방어 효과 확인.
 
 ---
 
@@ -45,52 +45,65 @@
                        │     <<abstract>>      │
                        │       CsvSource       │
                        ├───────────────────────┤
-                       │ - fpath: Path         │
-                       ├───────────────────────┤
                        │ + encoding (property) │
                        │ + normalize_dong_cd() │
                        │ + load() {abstract}   │
                        └───────────▲───────────┘
-                                   │ 상속 (Inheritance)
-          ┌────────────────────────┼────────────────────────┐
-┌─────────┴────────────┐ ┌─────────┴────────────┐ ┌─────────┴────────────┐
-│   LivingPopSource    │ │  AgeLivingPopSource  │ │    ParkMapSource     │
-│ (4열 인구 데이터 로드│ │(32열 성별/연령 집계) │ │(공원 맵핑 및 면적보정│
-└──────────────────────┘ └──────────────────────┘ └────────────▲─────────┘
-                                                               │ 주입
-                                                   ┌───────────┴─────────┐
-                                                   │     ParkMapper      │
-                                                   ├─────────────────────┤
-                                                   │ + restrict_to()     │
-                                                   │ + has_park()        │
-                                                   └─────────────────────┘
+                                   │
+           ┌───────────────────────┴───────────────────────┐
+┌──────────┴────────────┐                       ┌──────────┴────────────┐
+│     <<abstract>>      │                       │     ParkMapSource     │
+│   MonthlyPopSource    │                       │  (공원 매핑 & 보정)   │
+│  (_read_raw 템플릿)   │                       └──────────▲────────────┘
+└──────────▲────────────┘                                  │ 주입 (DIP)
+     ┌─────┴─────────────┐                      ┌──────────┴────────────┐
+┌────┴──────────────┐ ┌──┴──────────────────┐   │      ParkMapper       │
+│  LivingPopSource  │ │ AgeLivingPopSource  │   │ + restrict_to()       │
+└───────────────────┘ └─────────────────────┘   │ + has_park()          │
+                                                └───────────────────────┘
 
                        ┌───────────────────────┐
                        │     <<abstract>>      │
-                       │         Chart         │
-                       ├───────────────────────┤
-                       │ - analyzer            │
-                       ├───────────────────────┤
-                       │ + build() {abstract}  │
-                       │ + save(out_dir)       │
-                       │ + to_div(include_js)  │
+                       │   BasePreprocessor    │
+                       │ (_filter_common/run)  │
                        └───────────▲───────────┘
-                                   │ 상속 (Polymorphism)
-          ┌────────────────────────┴────────────────────────┐
-┌─────────┴───────────────────────────┐ ┌───────────────────┴─────────────────┐
-│              주제 1 차트             │ │                  주제 2 차트               │
-├─────────────────────────────────────┤ ├─────────────────────────────────────┤
-│ • RateDistributionChart (분포 박스) │ │ • AgeRateBarChart (세대별 비교 막대)│
-│ • DifferenceForestChart (신뢰구간)  │ │ • AgeForestChart (세대별 포레스트)  │
-│ • YearlyTrendChart (4개년 추이선)   │ │ • AgeYearlyTrendChart (세대별 추이) │
-└─────────────────────────────────────┘ └─────────────────────────────────────┘
+                                   │
+                       ┌───────────┴───────────┐
+                       │ DaytimePopPreprocessor│
+                       └───────────▲───────────┘
+                                   │
+                       ┌───────────┴───────────┐
+                       │  AgePopPreprocessor   │
+                       └───────────────────────┘
+
+┌──────────────────────┐                        ┌───────────────────────┐
+│     <<protocol>>     │                        │     <<abstract>>      │
+│      NameLookup      │◀───── 구현 ────────────│    DongNameLookup     │
+│ + name(dong_cd): str │                        │ (경량 GeoJSON & 조회) │
+└──────────▲───────────┘                        └───────────────────────┘
+           │ 주입 (ISP)
+┌──────────┴───────────┐                        ┌───────────────────────┐
+│     <<abstract>>     │                        │     <<abstract>>      │
+│     BaseAnalyzer     │◀───── 주입 ────────────│         Chart         │
+│  (증가율·격차 요약)  │                        │ + build() {abstract}  │
+└──────────▲───────────┘                        └──────────▲────────────┘
+     ┌─────┴─────────────┐                                 │ 상속 (Polymorphism)
+┌────┴─────────────────┐ ┌─┴──────────────────┐ ┌──────────┴────────────┐
+│SeasonalChangeAnalyzer│ │  AgeGroupAnalyzer  │ │ 5종 인터랙티브 차트   │
+│ + dong_details()     │ │ + dong_age_details │ │ • SeoulParkMapChart   │
+│ + gu_summaries()     │ └────────────────────┘ │ • RateDistribution... │
+└──────────▲───────────┘                        │ • YearlyTrendChart    │
+           │             ┌────────────────────┐ │ • AgeRateBarChart     │
+           └───── 주입 ─▶│  DashboardBuilder  │ │ • AgeYearlyTrendChart │
+                         └────────────────────┘ └───────────────────────┘
 ```
 
-### 💡 핵심 OOP 설계 패턴 적용
-* **추상화(Abstraction):** `CsvSource`와 `Chart`를 추상 기본 클래스로 정의하여 공통 속성(인코딩 감지, 파일 저장, SVG 추출)을 규격화.
-* **상속(Inheritance):** `AgeLivingPopSource`가 `CsvSource`를 상속받고, 6개의 시각화 클래스가 `Chart`를 상속받아 다형적 동작 구현.
-* **캡슐화(Encapsulation):** 공휴일 판별 및 설 연휴 제외 로직은 `HolidayCalendar`, 행정동 불일치 공원 필터링은 `ParkMapper` 내부로 캡슐화.
-* **조합(Composition):** `DaytimePopPreprocessor`와 `AgePopPreprocessor`가 Config, Calendar, Mapper 객체들을 주입받아 전처리 파이프라인 수행.
+### 💡 핵심 SOLID & OOP 설계 패턴 적용
+* **SRP (단일 책임):** `ParkMapper`(공원 매핑), `HolidayCalendar`(달력 판별), `DongNameLookup`(지리·이름 조회), `DashboardBuilder`(HTML 조립)로 책임을 엄격히 분리.
+* **OCP (개방-폐쇄):** `MonthlyPopSource._read_raw()`와 `BasePreprocessor._filter_common()`으로 공통 뼈대를 닫아 두고, 파생 클래스가 세부 파싱·집계만 확장.
+* **LSP (리스코프 치환):** `BaseAnalyzer`가 `group_col`·`categories`·`summary()` 규약을 공통화하여 `SeasonalChangeAnalyzer`와 `AgeGroupAnalyzer`가 동일 계약으로 치환 동작하며, 5종 `Chart` 서브클래스도 동일하게 치환.
+* **ISP (인터페이스 분리):** 이름 조회만 필요한 분석기에는 경량 `NameLookup` 프로토콜만 노출하고, 지도 차트에만 GeoJSON 경계 데이터를 제공.
+* **DIP (의존성 역전):** `ParkMapper`, `DashboardBuilder`가 구체 파일 경로 대신 `CsvSource`, `ParkMapSource`, `BaseAnalyzer` 추상에 의존해 인메모리 단위 테스트 가능.
 
 ---
 
@@ -108,9 +121,12 @@ OOP/
 │   ├── newdata.py                        # [주제 1] 주말 낮 생활인구 집계 모듈
 │   └── extract_age_data.py               # [주제 2] 5대 세대별 생활인구 집계 모듈
 ├── analysis/                             # 통계 검정 및 인터랙티브 Plotly 시각화 모듈
-│   ├── topic1_visualize.py               # [주제 1] 공원 유무별 계절 변동 검정 및 차트
+│   ├── topic1_visualize.py               # [주제 1] 공원 유무별 계절 변동 검정 및 서울 지도·차트
 │   ├── topic2_visualize.py               # [주제 2] 세대별 공원 반응도 검정 및 차트
-│   └── build_dashboard.py                # 통합 웹 대시보드 빌더
+│   └── build_dashboard.py                # `DashboardBuilder` 기반 통합 웹 대시보드 빌더
+├── tests/                                # 의존성 주입(DI) & SOLID 계약 검증 단위 테스트
+│   ├── test_preprocessing.py             # 전처리 파이프라인 및 ParkMapper 테스트
+│   └── test_analysis.py                  # BaseAnalyzer · LSP 다형성 테스트
 ├── docs/                                 # GitHub Pages 배포 디렉토리
 │   ├── index.html                        # 2개 탭 통합 대시보드 메인 웹 애플리케이션
 │   ├── PRESENTATION_MASTER_GUIDE.md      # 🏆 [발표·PPT 마스터] 전체 실행 흐름 + 2023 분석 + 7대 클래스 상세 템플릿
@@ -125,34 +141,42 @@ OOP/
 | 파일 / 폴더명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
 | `data/README.md` | 데이터 디렉토리 내 원천/정제 데이터셋의 상세 스키마 및 출처 정리 | `data/` 디렉토리 방문 시 데이터셋 명세를 즉시 확인할 수 있도록 안내 |
-| `data/raw/park_dong_map.csv` | 서울시 102개 주요 공원의 번호, 공원명, 자치구, 8자리 행정동코드, 면적($m^2$), 좌표, 시설물, 주소 정보 | 서울시 424개 행정동 중 공원 보유 동(102개)과 미보유 동(322개)을 식별하고 독립변수(`has_park`)를 정의하는 기준 데이터셋 |
-| `data/raw/HangJeongDong_ver20260701.geojson` | 대한민국 행정동 지리 경계 다각형 좌표 및 행정동 코드·이름 매핑 GeoJSON ([출처: admdongkor](https://github.com/vuski/admdongkor)) | 8자리 행정동 코드를 사람이 직관적으로 이해할 수 있는 동 이름(예: '종로구 청운효자동', '마포구 상암동')으로 변환하여 차트 툴팁에 표시 |
-| `data/raw/LPD/` *(git 제외)* | 4개년(2023~2026) 1월·5월 서울시 생활인구 월별 원천 CSV 파일 8개 (총 수천만 건의 시간대별 행정동 인구 원시 데이터) | 전처리 파이프라인의 입력 원천 데이터 (대용량으로 인해 `.gitignore`로 관리되며 로컬에 보관) |
-| `data/processed/daytime_weekend_pop.csv` | 424개 행정동 × 4개년 × 2개 계절(1월·5월) × 주말/평일 낮 시간대(10~17시) 평균 생활인구 집계 (6,784행) | **[주제 1]** 혹한기 대비 봄철 생활인구 증가율 계산, 독립표본 t-검정, Mann-Whitney U 검정 수행의 입력 데이터 |
-| `data/processed/daytime_age_pop.csv` | 424개 행정동 × 4개년 × 2개 계절 × 5개 세대(유아동, 청소년, 청년, 중장년, 노년)별 주말 낮 생활인구 집계 (40,704행) | **[주제 2]** 5대 세대 그룹별 봄철 생활인구 증가율 및 공원 반응도 격차 통계 검정의 입력 데이터 |
+| `data/raw/park_dong_map.csv` | 서울시 127개 주요 공원의 번호, 공원명, 자치구, 8자리 행정동코드, 면적($m^2$), 좌표, 시설물, 주소 정보 | 서울시 424개 행정동 중 공원 보유 동(102개)과 미보유 동(322개)을 식별하고 지도 마커 표시에 활용 |
+| `data/raw/HangJeongDong_ver20260701.geojson` | 대한민국 행정동 지리 경계 다각형 좌표 GeoJSON ([출처: admdongkor](https://github.com/vuski/admdongkor)) | 서울 전용 경량 GeoJSON(`data/processed/seoul_dongs.geojson`) 추출의 원천 지리 데이터 |
+| `data/raw/LPD/` *(git 제외)* | 서울시 생활인구 월별 원천 CSV 파일 (2022.07~2026.07 총 49개 보관, 분석에는 4개년 1·5월 8개 파일 사용) | 전처리 파이프라인의 입력 원천 데이터 (대용량으로 인해 `.gitignore`로 관리) |
+| `data/processed/seoul_dongs.geojson` | 서울시 424개 행정동 경량 경계 폴리곤 및 개편 동 코드 통합 매핑 (420KB) | 서울 지도 시각화(`SeoulParkMapChart`) 및 빠른 행정동 이름 조회(`DongNameLookup`) |
+| `data/processed/seoul_gus.geojson` | 서울시 25개 자치구 외곽 경계 경량 폴리곤 | 행정동 지도 위 구 경계선 표시 및 자치구별 드릴다운 확대 지원 |
+| `data/processed/daytime_weekend_pop.csv` | 424개 행정동 × 4개년 × 2개 계절(1월·5월) × 주말/평일 낮 시간대(10~17시) 평균 생활인구 집계 (6,784행) | **[주제 1]** 혹한기 대비 봄철 생활인구 증가율 및 공원 유무별 격차 비교 입력 데이터 |
+| `data/processed/daytime_age_pop.csv` | 424개 행정동 × 4개년 × 2개 계절 × 5개 세대(유아동, 청소년, 청년, 중장년, 노년)별 낮 생활인구 집계 (40,704행) | **[주제 2]** 주말·공휴일 낮 기준 5대 세대별 봄철 공원 반응도 통계 검정의 입력 데이터 |
 
 ### 2. `preprocessing/` (데이터 정제 및 전처리 파이프라인)
 | 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
-| `preprocessing/newdata.py` | `CsvSource`(추상 클래스), `LivingPopSource`, `ParkMapSource`, `HolidayCalendar`, `ParkMapper`, `DaytimePopPreprocessor` 클래스 | 대이동 왜곡을 일으키는 설 연휴(2023/2025)를 제외하고, 주말/공휴일 낮 시간대 평균 인구를 집계하여 `data/processed/daytime_weekend_pop.csv` 생성 |
-| `preprocessing/extract_age_data.py` | `newdata.py`의 기반 클래스를 상속받은 `AgeLivingPopSource`, `AgePopPreprocessor` 클래스 및 5대 세대 정의 | 원천 생활인구 32개 열을 파싱하여 5개 생애주기 세대(영유아, 청소년, 청년, 중장년, 고령층)별 인구로 분할 집계하여 `data/processed/daytime_age_pop.csv` 생성 |
+| `preprocessing/newdata.py` | `CsvSource`, `MonthlyPopSource`, `LivingPopSource`, `ParkMapSource`, `HolidayCalendar`, `ParkMapper`, `BasePreprocessor`, `DaytimePopPreprocessor` | 설 연휴 제외, 낮 시간대 필터링, 주말·공휴일 판별, 공원 보유 결합으로 `daytime_weekend_pop.csv` 생성 |
+| `preprocessing/extract_age_data.py` | `MonthlyPopSource` 상속 `AgeLivingPopSource`, `DaytimePopPreprocessor` 상속 `AgePopPreprocessor` 및 `AGE_GROUPS` | 원천 생활인구 32개 열을 5대 세대로 합산 후 Tidy 포맷으로 변환해 `daytime_age_pop.csv` 생성 |
 
 ### 3. `analysis/` (통계 분석 및 시각화 모듈)
 | 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
-| `analysis/topic1_visualize.py` | `SeasonalChangeAnalyzer`, `DongNameLookup`, `Theme`, `Chart`(추상 클래스), `RateDistributionChart`, `DifferenceForestChart`, `YearlyTrendChart` 클래스 | **[주제 1]** 계절 증가율 계산, 독립표본 t-검정 및 U-검정 수행, 박스플롯·포레스트플롯·4개년 추이선 인터랙티브 Plotly 차트 생성 및 `docs/topic1/`에 저장 |
-| `analysis/topic2_visualize.py` | `AgeGroupAnalyzer`, `AgeRateBarChart`, `AgeForestChart`, `AgeYearlyTrendChart` 클래스 | **[주제 2]** 세대별 증가율 및 격차 통계 검정 수행, 5개 세대 비교 막대그래프·신뢰구간·연도별 추이선 인터랙티브 Plotly 차트 생성 및 `docs/topic2/`에 저장 |
-| `analysis/build_dashboard.py` | 주제 1과 주제 2의 차트 컴포넌트 호출, KPI 요약 카드 정의, 반응형 레이아웃 구성, 탭 전환 스크립트 빌드 함수 | 6개 인터랙티브 차트와 주요 통계 지표를 결합한 GitHub Pages 배포용 단일 웹 플랫폼(`docs/index.html`) 자동 생성 |
+| `analysis/topic1_visualize.py` | `NameLookup`(Protocol), `DongNameLookup`, `BaseAnalyzer`, `SeasonalChangeAnalyzer`, `Chart`, `SeoulParkMapChart`, `RateDistributionChart`, `YearlyTrendChart` | **[개요 지도 & 주제 1]** 서울 424개 행정동 · 25개 구 경계 지도 + 127개 공원 오버레이, 계절 증가율 계산 및 차트 생성 |
+| `analysis/topic2_visualize.py` | `AgeGroupAnalyzer`, `AgeRateBarChart`, `AgeYearlyTrendChart`, `Topic2Report` | **[주제 2]** 주말·공휴일 낮 기준 세대별 증가율 및 격차 비교, 5대 세대 막대·추이선 차트 생성 |
+| `analysis/build_dashboard.py` | `DashboardBuilder` 클래스 (분석기·`ParkMapSource`·차트 DI 주입 및 HTML 조립) | 3개 탭(서울 한눈에 보기, 계절별 변동, 세대별 반응도) + 구별 확대·상세 인스펙터 통합 웹 대시보드(`docs/index.html`) 생성 |
 
-### 4. `docs/` (GitHub Pages 배포 웹 디렉토리)
+### 4. `tests/` (단위 테스트)
+| 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
+| :--- | :--- | :--- |
+| `tests/test_preprocessing.py` | `TestHolidayCalendar`, `TestParkMapper`, `TestPreprocessors` (인메모리 Fake `CsvSource` 주입) | 공휴일 판별, 원본 훼손 없는 공원 매핑 제한, 시간대/세대 전처리 파이프라인 검증 |
+| `tests/test_analysis.py` | `TestAnalyzers` (Fake `NameLookup` 주입) | `BaseAnalyzer.compare()` 통계량 및 두 분석기의 다형적 `summary()` 치환(LSP) 검증 |
+
+### 5. `docs/` (GitHub Pages 배포 웹 디렉토리)
 | 파일 / 폴더명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
-| `docs/index.html` | Pretendard 웹폰트, KPI 카드 6개, Plotly 인터랙티브 그래프 6개, 반응형 탭 메뉴가 내장된 단일 HTML 웹 대시보드 (225KB) | 사용자가 브라우저에서 2개 연구 주제를 탭으로 넘나들며 확대/축소, 툴팁 확인, SVG 다운로드를 할 수 있는 최종 웹 플랫폼 |
-| `docs/TEAM_OOP_GUIDE.md` | 모든 클래스(25개)의 SOLID 원칙 매핑, 입·출력 스키마, 처리 과정 상세 명세 | 팀원들의 OOP 설계 원칙 이해, 보고서 작성 및 발표를 위한 공식 가이드 문서 |
-| `docs/topic1/` | 주제 1 개별 차트 HTML 3개(`distribution`, `forest`, `yearly`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 1 단독 페이지 및 통계 검정 결과 수치 파일 제공 |
-| `docs/topic2/` | 주제 2 개별 차트 HTML 3개(`age_bar`, `age_forest`, `age_trend`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 2 단독 페이지 및 세대별 통계 검정 결과 수치 파일 제공 |
+| `docs/index.html` | Pretendard 웹폰트, 비대칭 Split View 및 상세 인스펙터, 서울 지도 + 차트 5종, 3개 탭 내장 단일 HTML 대시보드 | 브라우저에서 서울 전체·자치구별 확대 지도 및 2개 연구 주제를 탐색하고 SVG 다운로드를 제공하는 최종 웹 플랫폼 |
+| `docs/TEAM_OOP_GUIDE.md` | 모든 클래스의 SOLID 원칙 매핑, 입·출력 스키마, 처리 과정 상세 명세 | 팀원들의 OOP 설계 원칙 이해, 보고서 작성 및 발표를 위한 공식 가이드 문서 |
+| `docs/topic1/` | 주제 1 개별 차트 HTML 2개(`distribution`, `yearly`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 1 단독 페이지 및 통계 검정 결과 수치 파일 제공 |
+| `docs/topic2/` | 주제 2 개별 차트 HTML 2개(`age_bar`, `age_trend`), 통계 요약표(`stats_summary.csv`), `index.html` | 주제 2 단독 페이지 및 세대별 통계 검정 결과 수치 파일 제공 |
 
-### 5. 기타 설정 파일
+### 6. 기타 설정 파일
 | 파일명 | 포함 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
 | `.gitignore` | `data/raw/LPD/`, `*.docx`, `__pycache__/` 등 제외 규칙 | 대용량 원천 빅데이터와 개인 보고서 초안이 Git 원격 저장소에 커밋되지 않도록 차단 |
@@ -205,6 +229,11 @@ uv run analysis/topic2_visualize.py
 
 # 통합 웹 대시보드 빌드 (docs/index.html 생성)
 uv run analysis/build_dashboard.py
+```
+
+### 4. 단위 테스트 실행
+```bash
+uv run python -m unittest discover -s tests -v
 ```
 
 ---
