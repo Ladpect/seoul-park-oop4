@@ -547,11 +547,18 @@ class DashboardBuilder:
   const OUTSIDE_ALPHA = 0.25;
   const PARK_INSIDE_OPACITY = 0.85;
   const PARK_OUTSIDE_OPACITY = OUTSIDE_ALPHA;
+  const ELEVATION_KEY_Y = 4;
+  const ELEVATION_KEY_BLUR = 4.5;
+  const ELEVATION_KEY_ALPHA = 0.14;
+  const ELEVATION_AMBIENT_Y = 1;
+  const ELEVATION_AMBIENT_BLUR = 1.5;
+  const ELEVATION_AMBIENT_ALPHA = 0.07;
 
   let currentGu = 'ALL';
   let currentColorMode = 'rate';
   let zoomAnimFrameId = null;
   let animToken = 0;
+  let elevationState = {{ gu: null, strength: 0, uid: null }};
   let origDongTrace = null;
   let origBorderTrace = null;
   let origParkHaloTrace = null;
@@ -618,6 +625,44 @@ class DashboardBuilder:
     sub.render(true);
   }}
 
+  function prefersReducedMotion() {{
+    return Boolean(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }}
+
+  function formatElevationFilter(strength) {{
+    const s = Math.max(0, Math.min(1, strength));
+    if (s <= 0.001) return '';
+    return `drop-shadow(0px ${{(ELEVATION_KEY_Y * s).toFixed(2)}}px ${{(ELEVATION_KEY_BLUR * s).toFixed(2)}}px rgba(15, 23, 42, ${{(ELEVATION_KEY_ALPHA * s).toFixed(3)}})) drop-shadow(0px ${{(ELEVATION_AMBIENT_Y * s).toFixed(2)}}px ${{(ELEVATION_AMBIENT_BLUR * s).toFixed(2)}}px rgba(15, 23, 42, ${{(ELEVATION_AMBIENT_ALPHA * s).toFixed(3)}}))`;
+  }}
+
+  function findChoroplethGroup(mapPlot, uid) {{
+    if (!mapPlot || !uid) return null;
+    const groups = mapPlot.querySelectorAll('.choroplethlayer g.trace.choropleth');
+    for (const g of groups) {{
+      const d = g.__data__;
+      if (d && d[0] && d[0].trace && d[0].trace.uid === uid) return g;
+    }}
+    return null;
+  }}
+
+  function clearOtherElevationFilters(mapPlot, keepUid) {{
+    if (!mapPlot) return;
+    const groups = mapPlot.querySelectorAll('.choroplethlayer g.trace.choropleth');
+    for (const g of groups) {{
+      const d = g.__data__;
+      const uid = d && d[0] && d[0].trace && d[0].trace.uid;
+      if (uid !== keepUid) g.style.filter = '';
+    }}
+  }}
+
+  function applyElevationShadow(groupEl, strength, gu, uid) {{
+    const s = Math.max(0, Math.min(1, strength));
+    if (groupEl) groupEl.style.filter = formatElevationFilter(s);
+    elevationState = s > 0.001 && gu && uid
+      ? {{ gu, strength: s, uid }}
+      : {{ gu: null, strength: 0, uid: null }};
+  }}
+
   function commitGeoLayout(mapPlot, view) {{
     return Plotly.relayout(mapPlot, {{
       'geo.fitbounds': false,
@@ -632,6 +677,20 @@ class DashboardBuilder:
   function interruptZoomForGesture(mapPlot) {{
     if (zoomAnimFrameId === null) return;
     cancelZoomAnimation();
+    const targetStrength = currentGu === 'ALL' ? 0 : 1;
+    const targetUid = currentGu === 'ALL'
+      ? elevationState.uid
+      : (elevationState.gu === currentGu && elevationState.uid
+        ? elevationState.uid
+        : 'dong-' + currentGu + '-' + currentColorMode);
+    const groupEl = targetUid ? findChoroplethGroup(mapPlot, targetUid) : null;
+    clearOtherElevationFilters(mapPlot, targetStrength > 0 ? targetUid : null);
+    applyElevationShadow(
+      groupEl,
+      targetStrength,
+      currentGu === 'ALL' ? null : currentGu,
+      targetStrength > 0 ? targetUid : null
+    );
     const view = getCurrentGeoView(mapPlot);
     if (!view) return;
 
@@ -647,26 +706,47 @@ class DashboardBuilder:
     fullGeo._subplot.updateFx(mapPlot._fullLayout, fullGeo);
   }}
 
-  function animateGeoView(mapPlot, fromView, toView, token, durationMs = ZOOM_DURATION_MS) {{
+  function animateGeoView(mapPlot, fromView, toView, token, durationMs = ZOOM_DURATION_MS, shadowAnim = null) {{
     const sub = getGeoSubplot(mapPlot);
     if (!sub || !toView) return;
-    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const negligible = !fromView || (
+    const reduceMotion = prefersReducedMotion();
+    const viewNegligible = !fromView || (
       Math.abs(fromView.lon - toView.lon) < 1e-5 &&
       Math.abs(fromView.lat - toView.lat) < 1e-5 &&
       Math.abs(fromView.scale - toView.scale) / Math.max(toView.scale, 1) < 1e-3
     );
-    if (reduceMotion || durationMs <= 0 || negligible) {{
-      applyProjectionView(sub, toView);
-      commitGeoLayout(mapPlot, toView);
+    const shadowNegligible = !shadowAnim || Math.abs(shadowAnim.from - shadowAnim.to) < 1e-3;
+    let cachedGroupEl = shadowAnim ? findChoroplethGroup(mapPlot, shadowAnim.uid) : null;
+
+    function applyShadowAt(strength) {{
+      if (!shadowAnim) return;
+      if (!cachedGroupEl || !cachedGroupEl.isConnected) {{
+        cachedGroupEl = findChoroplethGroup(mapPlot, shadowAnim.uid);
+      }}
+      applyElevationShadow(cachedGroupEl, strength, shadowAnim.gu, shadowAnim.uid);
+    }}
+
+    function finishCommit() {{
+      if (shadowAnim) applyShadowAt(shadowAnim.to);
+      Promise.resolve(commitGeoLayout(mapPlot, toView)).then(() => {{
+        if (token !== animToken || !shadowAnim) return;
+        applyShadowAt(shadowAnim.to);
+      }});
+    }}
+
+    if (reduceMotion || durationMs <= 0 || (viewNegligible && shadowNegligible)) {{
+      if (!viewNegligible) applyProjectionView(sub, toView);
+      finishCommit();
       return;
     }}
 
-    const logS0 = Math.log(fromView.scale);
+    if (!fromView) applyProjectionView(sub, toView);
+    const safeFrom = fromView || toView;
+    const logS0 = Math.log(safeFrom.scale);
     const logS1 = Math.log(toView.scale);
-    const invS0 = 1 / fromView.scale;
+    const invS0 = 1 / safeFrom.scale;
     const invS1 = 1 / toView.scale;
-    const y0 = mercatorY(fromView.lat);
+    const y0 = mercatorY(safeFrom.lat);
     const y1 = mercatorY(toView.lat);
     const hasScaleDelta = Math.abs(logS1 - logS0) > 0.05;
     let startTime = null;
@@ -681,17 +761,22 @@ class DashboardBuilder:
       if (startTime === null) startTime = ts;
       const t = Math.min((ts - startTime) / durationMs, 1);
       const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-      const curScale = Math.exp(logS0 + (logS1 - logS0) * ease);
-      const w = hasScaleDelta ? (invS0 - 1 / curScale) / (invS0 - invS1) : ease;
-      const curLon = fromView.lon + (toView.lon - fromView.lon) * w;
-      const curLat = invMercatorY(y0 + (y1 - y0) * w);
-
-      applyProjectionView(liveSub, {{ lon: curLon, lat: curLat, scale: curScale }});
+      if (!viewNegligible) {{
+        const curScale = Math.exp(logS0 + (logS1 - logS0) * ease);
+        const w = hasScaleDelta ? (invS0 - 1 / curScale) / (invS0 - invS1) : ease;
+        const curLon = safeFrom.lon + (toView.lon - safeFrom.lon) * w;
+        const curLat = invMercatorY(y0 + (y1 - y0) * w);
+        applyProjectionView(liveSub, {{ lon: curLon, lat: curLat, scale: curScale }});
+      }}
+      if (shadowAnim && !shadowNegligible) {{
+        const curShadow = shadowAnim.from + (shadowAnim.to - shadowAnim.from) * ease;
+        applyShadowAt(curShadow);
+      }}
       if (t < 1) {{
         zoomAnimFrameId = requestAnimationFrame(step);
       }} else {{
         zoomAnimFrameId = null;
-        commitGeoLayout(mapPlot, toView);
+        finishCommit();
       }}
     }}
 
@@ -824,6 +909,7 @@ class DashboardBuilder:
     if (!mapPlot || !origDongTrace) return;
 
     cancelZoomAnimation();
+    const prevShadow = {{ ...elevationState }};
     const myToken = animToken;
     document.querySelectorAll('.choroplethlocation.is-hovered').forEach(p => p.classList.remove('is-hovered'));
     const startView = getCurrentGeoView(mapPlot);
@@ -867,10 +953,52 @@ class DashboardBuilder:
       else dimParkIdx.push(i);
     }});
 
+    let shadowAnim = null;
     const traces = [];
     if (isAll) {{
+      const shouldAnimateExit = !keepViewport && animateZoom && !prefersReducedMotion() && Boolean(prevShadow.gu) && prevShadow.strength > 0.001;
+      if (shouldAnimateExit) {{
+        const otherIdx = [];
+        const exitIdx = [];
+        origDongTrace.locations.forEach((cd, i) => {{
+          const d = DETAIL_DATA.dongs[cd];
+          if (d && d.gu === prevShadow.gu) exitIdx.push(i);
+          else otherIdx.push(i);
+        }});
+
+        const otherFeatures = [];
+        const exitFeatures = [];
+        origDongTrace.geojson.features.forEach(ft => {{
+          const d = DETAIL_DATA.dongs[ft.id];
+          if (d && d.gu === prevShadow.gu) exitFeatures.push(ft);
+          else otherFeatures.push(ft);
+        }});
+
+        const shadowUid = 'dong-exit-' + prevShadow.gu + '-' + currentColorMode;
+        traces.push(
+          buildDongTrace(otherIdx, otherFeatures, {{
+            uid: 'dong-ALL-base-' + currentColorMode,
+            opacity: 1,
+            showscale: currentColorMode === 'rate',
+            lineWidth: 0.6,
+            lineColor: '#E5E7EB',
+            name: '행정동',
+          }}),
+          buildDongTrace(exitIdx, exitFeatures, {{
+            uid: shadowUid,
+            opacity: 1,
+            showscale: false,
+            lineWidth: 0.6,
+            lineColor: '#E5E7EB',
+            name: '행정동',
+          }})
+        );
+        shadowAnim = {{ uid: shadowUid, gu: prevShadow.gu, from: prevShadow.strength, to: 0 }};
+      }} else {{
+        traces.push(activeDongTrace);
+      }}
+
       traces.push(
-        activeDongTrace,
         buildLineTrace(
           {{ lon: origBorderTrace.lon, lat: origBorderTrace.lat }},
           {{ uid: 'border-ALL', color: '#6B7280', width: 1.1, dash: 'dot', legendgroup: 'gu-border', name: '자치구 경계', showlegend: true }}
@@ -895,6 +1023,10 @@ class DashboardBuilder:
       const dimGuBounds = collectOtherLines(DETAIL_DATA.gu_borders, currentGu);
       const activePkBounds = DETAIL_DATA.park_dong_borders[currentGu] || {{ lon: [], lat: [] }};
       const dimPkBounds = collectOtherLines(DETAIL_DATA.park_dong_borders, currentGu);
+
+      const shadowUid = 'dong-' + currentGu + '-' + currentColorMode;
+      const fromShadow = prevShadow.gu === currentGu ? prevShadow.strength : 0;
+      shadowAnim = {{ uid: shadowUid, gu: currentGu, from: fromShadow, to: 1 }};
 
       traces.push(
         buildDongTrace(dimDongIdx, dimFeatures, {{
@@ -1000,11 +1132,29 @@ class DashboardBuilder:
     }};
 
     Promise.resolve(Plotly.react(mapPlot, traces, layoutCopy)).then(() => {{
-      if (myToken !== animToken || keepViewport) return;
+      if (myToken !== animToken) return;
+      if (keepViewport) {{
+        if (!isAll && shadowAnim) {{
+          clearOtherElevationFilters(mapPlot, shadowAnim.uid);
+          applyElevationShadow(findChoroplethGroup(mapPlot, shadowAnim.uid), 1, currentGu, shadowAnim.uid);
+        }} else {{
+          clearOtherElevationFilters(mapPlot, null);
+          elevationState = {{ gu: null, strength: 0, uid: null }};
+        }}
+        return;
+      }}
+      if (shadowAnim) {{
+        clearOtherElevationFilters(mapPlot, shadowAnim.uid);
+        const initialStrength = (animateZoom && !prefersReducedMotion()) ? shadowAnim.from : shadowAnim.to;
+        applyElevationShadow(findChoroplethGroup(mapPlot, shadowAnim.uid), initialStrength, shadowAnim.gu, shadowAnim.uid);
+      }} else {{
+        clearOtherElevationFilters(mapPlot, null);
+        elevationState = {{ gu: null, strength: 0, uid: null }};
+      }}
       const targetView = computeTargetGeoView(mapPlot, currentGu);
       const liveStart = getCurrentGeoView(mapPlot) || startView;
       if (!targetView) return;
-      animateGeoView(mapPlot, liveStart, targetView, myToken, animateZoom ? ZOOM_DURATION_MS : 0);
+      animateGeoView(mapPlot, liveStart, targetView, myToken, animateZoom ? ZOOM_DURATION_MS : 0, shadowAnim);
     }});
   }}
 
