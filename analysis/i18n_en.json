@@ -1,0 +1,966 @@
+{
+  "gus": {
+    "강남구": "Gangnam-gu",
+    "강동구": "Gangdong-gu",
+    "강북구": "Gangbuk-gu",
+    "강북구 등": "Gangbuk-gu & others",
+    "강서구": "Gangseo-gu",
+    "관악구": "Gwanak-gu",
+    "광진구": "Gwangjin-gu",
+    "구로구": "Guro-gu",
+    "금천구": "Geumcheon-gu",
+    "노원구": "Nowon-gu",
+    "도봉구": "Dobong-gu",
+    "동대문구": "Dongdaemun-gu",
+    "동작구": "Dongjak-gu",
+    "마포구": "Mapo-gu",
+    "서대문구": "Seodaemun-gu",
+    "서초구": "Seocho-gu",
+    "성동구": "Seongdong-gu",
+    "성북구": "Seongbuk-gu",
+    "송파구": "Songpa-gu",
+    "양천구": "Yangcheon-gu",
+    "영등포구": "Yeongdeungpo-gu",
+    "용산구": "Yongsan-gu",
+    "은평구": "Eunpyeong-gu",
+    "종로구": "Jongno-gu",
+    "중구": "Jung-gu",
+    "중랑구": "Jungnang-gu"
+  },
+  "dongs": {
+    "11110515": "Cheongunhyoja-dong",
+    "11110530": "Sajik-dong",
+    "11110540": "Samcheong-dong",
+    "11110550": "Buam-dong",
+    "11110560": "Pyeongchang-dong",
+    "11110570": "Muak-dong",
+    "11110580": "Gyonam-dong",
+    "11110600": "Gahoe-dong",
+    "11110615": "Jongno 1·2·3·4-ga-dong",
+    "11110630": "Jongno 5·6-ga-dong",
+    "11110640": "Ihwa-dong",
+    "11110650": "Hyehwa-dong",
+    "11110670": "Changsin 1-dong",
+    "11110680": "Changsin 2-dong",
+    "11110690": "Changsin 3-dong",
+    "11110700": "Sungin 1-dong",
+    "11110710": "Sungin 2-dong",
+    "11140520": "Sogong-dong",
+    "11140540": "Hoehyeon-dong",
+    "11140550": "Myeong-dong",
+    "11140570": "Pil-dong",
+    "11140580": "Jangchung-dong",
+    "11140590": "Gwanghui-dong",
+    "11140605": "Euljiro-dong",
+    "11140615": "Sindang-dong",
+    "11140625": "Dasan-dong",
+    "11140635": "Yaksu-dong",
+    "11140645": "Cheonggu-dong",
+    "11140650": "Sindang 5-dong",
+    "11140665": "Donghwa-dong",
+    "11140670": "Hwanghak-dong",
+    "11140680": "Jungnim-dong",
+    "11170510": "Huam-dong",
+    "11170520": "Yongsan 2-ga-dong",
+    "11170530": "Namyeong-dong",
+    "11170555": "Cheongpa-dong",
+    "11170560": "Wonhyoro 1-dong",
+    "11170570": "Wonhyoro 2-dong",
+    "11170580": "Hyochang-dong",
+    "11170590": "Yongmun-dong",
+    "11170625": "Hangangno-dong",
+    "11170630": "Ichon 1-dong",
+    "11170640": "Ichon 2-dong",
+    "11170650": "Itaewon 1-dong",
+    "11170660": "Itaewon 2-dong",
+    "11170685": "Hannam-dong",
+    "11170690": "Seobinggo-dong",
+    "11170700": "Bogwang-dong",
+    "11200520": "Wangsimni 2-dong",
+    "11200535": "Wangsimnidoseon-dong",
+    "11200540": "Majang-dong",
+    "11200550": "Sageun-dong",
+    "11200560": "Haengdang 1-dong",
+    "11200570": "Haengdang 2-dong",
+    "11200580": "Eungbong-dong",
+    "11200590": "Geumho 1-ga-dong",
+    "11200615": "Geumho 2·3-ga-dong",
+    "11200620": "Geumho 4-ga-dong",
+    "11200645": "Oksu-dong",
+    "11200650": "Seongsu 1-ga 1-dong",
+    "11200660": "Seongsu 1-ga 2-dong",
+    "11200670": "Seongsu 2-ga 1-dong",
+    "11200690": "Seongsu 2-ga 3-dong",
+    "11200720": "Songjeong-dong",
+    "11200790": "Yongdap-dong",
+    "11215710": "Hwayang-dong",
+    "11215730": "Gunja-dong",
+    "11215740": "Junggok 1-dong",
+    "11215750": "Junggok 2-dong",
+    "11215760": "Junggok 3-dong",
+    "11215770": "Junggok 4-dong",
+    "11215780": "Neung-dong",
+    "11215810": "Gwangjang-dong",
+    "11215820": "Jayang 1-dong",
+    "11215830": "Jayang 2-dong",
+    "11215840": "Jayang 3-dong",
+    "11215847": "Jayang 4-dong",
+    "11215850": "Guui 1-dong",
+    "11215860": "Guui 2-dong",
+    "11215870": "Guui 3-dong",
+    "11230536": "Yongsin-dong",
+    "11230545": "Jegi-dong",
+    "11230560": "Jeonnong 1-dong",
+    "11230570": "Jeonnong 2-dong",
+    "11230600": "Dapsimni 1-dong",
+    "11230610": "Dapsimni 2-dong",
+    "11230650": "Jangan 1-dong",
+    "11230660": "Jangan 2-dong",
+    "11230705": "Cheongnyangni-dong",
+    "11230710": "Hoegi-dong",
+    "11230720": "Hwigyeong 1-dong",
+    "11230730": "Hwigyeong 2-dong",
+    "11230740": "Imun 1-dong",
+    "11230750": "Imun 2-dong",
+    "11260520": "Myeonmok 2-dong",
+    "11260540": "Myeonmok 4-dong",
+    "11260550": "Myeonmok 5-dong",
+    "11260565": "Myeonmokbon-dong",
+    "11260570": "Myeonmok 7-dong",
+    "11260575": "Myeonmok 3·8-dong",
+    "11260580": "Sangbong 1-dong",
+    "11260590": "Sangbong 2-dong",
+    "11260600": "Junghwa 1-dong",
+    "11260610": "Junghwa 2-dong",
+    "11260620": "Muk 1-dong",
+    "11260630": "Muk 2-dong",
+    "11260655": "Mangubon-dong",
+    "11260660": "Mangu 3-dong",
+    "11260680": "Sinnae 1-dong",
+    "11260690": "Sinnae 2-dong",
+    "11290525": "Seongbuk-dong",
+    "11290555": "Samseon-dong",
+    "11290575": "Dongseon-dong",
+    "11290580": "Donam 1-dong",
+    "11290590": "Donam 2-dong",
+    "11290600": "Anam-dong",
+    "11290610": "Bomun-dong",
+    "11290620": "Jeongneung 1-dong",
+    "11290630": "Jeongneung 2-dong",
+    "11290640": "Jeongneung 3-dong",
+    "11290650": "Jeongneung 4-dong",
+    "11290660": "Gireum 1-dong",
+    "11290685": "Gireum 2-dong",
+    "11290705": "Jongam-dong",
+    "11290715": "Wolgok 1-dong",
+    "11290725": "Wolgok 2-dong",
+    "11290760": "Jangwi 1-dong",
+    "11290770": "Jangwi 2-dong",
+    "11290780": "Jangwi 3-dong",
+    "11290810": "Seokgwan-dong",
+    "11305534": "Samyang-dong",
+    "11305535": "Mia-dong",
+    "11305545": "Songjung-dong",
+    "11305555": "Songcheon-dong",
+    "11305575": "Samgaksan-dong",
+    "11305590": "Beon 1-dong",
+    "11305600": "Beon 2-dong",
+    "11305606": "Beon 3-dong",
+    "11305610": "Suyu 1-dong",
+    "11305620": "Suyu 2-dong",
+    "11305630": "Suyu 3-dong",
+    "11305645": "Ui-dong",
+    "11305660": "Insu-dong",
+    "11320511": "Chang 1-dong",
+    "11320512": "Chang 2-dong",
+    "11320513": "Chang 3-dong",
+    "11320514": "Chang 4-dong",
+    "11320515": "Chang 5-dong",
+    "11320521": "Dobong 1-dong",
+    "11320522": "Dobong 2-dong",
+    "11320660": "Ssangmun 1-dong",
+    "11320670": "Ssangmun 2-dong",
+    "11320680": "Ssangmun 3-dong",
+    "11320681": "Ssangmun 4-dong",
+    "11320690": "Banghak 1-dong",
+    "11320700": "Banghak 2-dong",
+    "11320710": "Banghak 3-dong",
+    "11350560": "Wolgye 1-dong",
+    "11350570": "Wolgye 2-dong",
+    "11350580": "Wolgye 3-dong",
+    "11350595": "Gongneung 1-dong",
+    "11350600": "Gongneung 2-dong",
+    "11350611": "Hagye 1-dong",
+    "11350612": "Hagye 2-dong",
+    "11350619": "Junggyebon-dong",
+    "11350621": "Junggye 1-dong",
+    "11350624": "Junggye 4-dong",
+    "11350625": "Junggye 2·3-dong",
+    "11350630": "Sanggye 1-dong",
+    "11350640": "Sanggye 2-dong",
+    "11350665": "Sanggye 3·4-dong",
+    "11350670": "Sanggye 5-dong",
+    "11350695": "Sanggye 6·7-dong",
+    "11350700": "Sanggye 8-dong",
+    "11350710": "Sanggye 9-dong",
+    "11350720": "Sanggye 10-dong",
+    "11380510": "Nokbeon-dong",
+    "11380520": "Bulgwang 1-dong",
+    "11380530": "Bulgwang 2-dong",
+    "11380551": "Galhyeon 1-dong",
+    "11380552": "Galhyeon 2-dong",
+    "11380560": "Gusan-dong",
+    "11380570": "Daejo-dong",
+    "11380580": "Eungam 1-dong",
+    "11380590": "Eungam 2-dong",
+    "11380600": "Eungam 3-dong",
+    "11380625": "Yeokchon-dong",
+    "11380631": "Sinsa 1-dong",
+    "11380632": "Sinsa 2-dong",
+    "11380640": "Jeungsan-dong",
+    "11380650": "Susaek-dong",
+    "11380690": "Jingwan-dong",
+    "11410520": "Cheonyeon-dong",
+    "11410555": "Bugahyeon-dong",
+    "11410565": "Chunghyeon-dong",
+    "11410585": "Sinchon-dong",
+    "11410615": "Yeonhui-dong",
+    "11410620": "Hongje 1-dong",
+    "11410640": "Hongje 3-dong",
+    "11410655": "Hongje 2-dong",
+    "11410660": "Hongeun 1-dong",
+    "11410685": "Hongeun 2-dong",
+    "11410690": "Namgajwa 1-dong",
+    "11410700": "Namgajwa 2-dong",
+    "11410710": "Bukgajwa 1-dong",
+    "11410720": "Bukgajwa 2-dong",
+    "11440555": "Ahyeon-dong",
+    "11440565": "Gongdeok-dong",
+    "11440585": "Dohwa-dong",
+    "11440590": "Yonggang-dong",
+    "11440600": "Daeheung-dong",
+    "11440610": "Yeomni-dong",
+    "11440630": "Sinsu-dong",
+    "11440655": "Seogang-dong",
+    "11440660": "Seogyo-dong",
+    "11440680": "Hapjeong-dong",
+    "11440690": "Mangwon 1-dong",
+    "11440700": "Mangwon 2-dong",
+    "11440710": "Yeonnam-dong",
+    "11440720": "Seongsan 1-dong",
+    "11440730": "Seongsan 2-dong",
+    "11440740": "Sangam-dong",
+    "11470510": "Mok 1-dong",
+    "11470520": "Mok 2-dong",
+    "11470530": "Mok 3-dong",
+    "11470540": "Mok 4-dong",
+    "11470550": "Mok 5-dong",
+    "11470560": "Sinwol 1-dong",
+    "11470570": "Sinwol 2-dong",
+    "11470580": "Sinwol 3-dong",
+    "11470590": "Sinwol 4-dong",
+    "11470600": "Sinwol 5-dong",
+    "11470610": "Sinwol 6-dong",
+    "11470611": "Sinwol 7-dong",
+    "11470620": "Sinjeong 1-dong",
+    "11470630": "Sinjeong 2-dong",
+    "11470640": "Sinjeong 3-dong",
+    "11470650": "Sinjeong 4-dong",
+    "11470670": "Sinjeong 6-dong",
+    "11470680": "Sinjeong 7-dong",
+    "11500510": "Yeomchang-dong",
+    "11500520": "Deungchon 1-dong",
+    "11500530": "Deungchon 2-dong",
+    "11500535": "Deungchon 3-dong",
+    "11500540": "Hwagok 1-dong",
+    "11500550": "Hwagok 2-dong",
+    "11500560": "Hwagok 3-dong",
+    "11500570": "Hwagok 4-dong",
+    "11500590": "Hwagokbon-dong",
+    "11500591": "Hwagok 6-dong",
+    "11500593": "Hwagok 8-dong",
+    "11500603": "Gayang 1-dong",
+    "11500604": "Gayang 2-dong",
+    "11500605": "Gayang 3-dong",
+    "11500611": "Balsan 1-dong",
+    "11500615": "Ujangsan-dong",
+    "11500620": "Gonghang-dong",
+    "11500630": "Banghwa 1-dong",
+    "11500640": "Banghwa 2-dong",
+    "11500641": "Banghwa 3-dong",
+    "11530510": "Sindorim-dong",
+    "11530520": "Guro 1-dong",
+    "11530530": "Guro 2-dong",
+    "11530540": "Guro 3-dong",
+    "11530550": "Guro 4-dong",
+    "11530560": "Guro 5-dong",
+    "11530595": "Garibong-dong",
+    "11530720": "Gocheok 1-dong",
+    "11530730": "Gocheok 2-dong",
+    "11530740": "Gaebong 1-dong",
+    "11530750": "Gaebong 2-dong",
+    "11530760": "Gaebong 3-dong",
+    "11530770": "Oryu 1-dong",
+    "11530780": "Oryu 2 · Hang-dong",
+    "11530790": "Sugung-dong",
+    "11545510": "Gasan-dong",
+    "11545610": "Doksan 1-dong",
+    "11545620": "Doksan 2-dong",
+    "11545630": "Doksan 3-dong",
+    "11545640": "Doksan 4-dong",
+    "11545670": "Siheung 1-dong",
+    "11545680": "Siheung 2-dong",
+    "11545690": "Siheung 3-dong",
+    "11545700": "Siheung 4-dong",
+    "11545710": "Siheung 5-dong",
+    "11560515": "Yeongdeungpobon-dong",
+    "11560535": "Yeongdeungpo-dong",
+    "11560540": "Yeoui-dong",
+    "11560550": "Dangsan 1-dong",
+    "11560560": "Dangsan 2-dong",
+    "11560585": "Dorim-dong",
+    "11560605": "Mullae-dong",
+    "11560610": "Yangpyeong 1-dong",
+    "11560620": "Yangpyeong 2-dong",
+    "11560630": "Singil 1-dong",
+    "11560650": "Singil 3-dong",
+    "11560660": "Singil 4-dong",
+    "11560670": "Singil 5-dong",
+    "11560680": "Singil 6-dong",
+    "11560690": "Singil 7-dong",
+    "11560700": "Daerim 1-dong",
+    "11560710": "Daerim 2-dong",
+    "11560720": "Daerim 3-dong",
+    "11590510": "Noryangjin 1-dong",
+    "11590520": "Noryangjin 2-dong",
+    "11590530": "Sangdo 1-dong",
+    "11590540": "Sangdo 2-dong",
+    "11590550": "Sangdo 3-dong",
+    "11590560": "Sangdo 4-dong",
+    "11590605": "Heukseok-dong",
+    "11590620": "Sadang 1-dong",
+    "11590630": "Sadang 2-dong",
+    "11590640": "Sadang 3-dong",
+    "11590650": "Sadang 4-dong",
+    "11590651": "Sadang 5-dong",
+    "11590660": "Daebang-dong",
+    "11590670": "Sindaebang 1-dong",
+    "11590680": "Sindaebang 2-dong",
+    "11620525": "Boramae-dong",
+    "11620545": "Cheongnim-dong",
+    "11620565": "Seonghyeon-dong",
+    "11620575": "Haengun-dong",
+    "11620585": "Nakseongdae-dong",
+    "11620595": "Cheongnyong-dong",
+    "11620605": "Euncheon-dong",
+    "11620615": "Jungang-dong",
+    "11620625": "Inheon-dong",
+    "11620630": "Namhyeon-dong",
+    "11620645": "Seowon-dong",
+    "11620655": "Sinwon-dong",
+    "11620665": "Seorim-dong",
+    "11620685": "Sinsa-dong",
+    "11620695": "Sillim-dong",
+    "11620715": "Nanhyang-dong",
+    "11620725": "Jowon-dong",
+    "11620735": "Daehak-dong",
+    "11620745": "Samseong-dong",
+    "11620765": "Miseong-dong",
+    "11620775": "Nangok-dong",
+    "11650510": "Seocho 1-dong",
+    "11650520": "Seocho 2-dong",
+    "11650530": "Seocho 3-dong",
+    "11650531": "Seocho 4-dong",
+    "11650540": "Jamwon-dong",
+    "11650550": "Banpobon-dong",
+    "11650560": "Banpo 1-dong",
+    "11650570": "Banpo 2-dong",
+    "11650580": "Banpo 3-dong",
+    "11650581": "Banpo 4-dong",
+    "11650590": "Bangbaebon-dong",
+    "11650600": "Bangbae 1-dong",
+    "11650610": "Bangbae 2-dong",
+    "11650620": "Bangbae 3-dong",
+    "11650621": "Bangbae 4-dong",
+    "11650651": "Yangjae 1-dong",
+    "11650652": "Yangjae 2-dong",
+    "11650660": "Naegok-dong",
+    "11680510": "Sinsa-dong",
+    "11680521": "Nonhyeon 1-dong",
+    "11680531": "Nonhyeon 2-dong",
+    "11680545": "Apgujeong-dong",
+    "11680565": "Cheongdam-dong",
+    "11680580": "Samseong 1-dong",
+    "11680590": "Samseong 2-dong",
+    "11680600": "Daechi 1-dong",
+    "11680610": "Daechi 2-dong",
+    "11680630": "Daechi 4-dong",
+    "11680640": "Yeoksam 1-dong",
+    "11680650": "Yeoksam 2-dong",
+    "11680655": "Dogok 1-dong",
+    "11680656": "Dogok 2-dong",
+    "11680660": "Gaepo 1-dong",
+    "11680670": "Gaepo 2-dong",
+    "11680690": "Gaepo 4-dong",
+    "11680700": "Segok-dong",
+    "11680720": "Irwonbon-dong",
+    "11680730": "Irwon 1-dong",
+    "11680740": "Gaepo 3-dong (Irwon 2)",
+    "11680750": "Suseo-dong",
+    "11710510": "Pungnap 1-dong",
+    "11710520": "Pungnap 2-dong",
+    "11710531": "Geoyeo 1-dong",
+    "11710532": "Geoyeo 2-dong",
+    "11710540": "Macheon 1-dong",
+    "11710550": "Macheon 2-dong",
+    "11710561": "Bangi 1-dong",
+    "11710562": "Bangi 2-dong",
+    "11710566": "Oryun-dong",
+    "11710570": "Ogeum-dong",
+    "11710580": "Songpa 1-dong",
+    "11710590": "Songpa 2-dong",
+    "11710600": "Seokchon-dong",
+    "11710610": "Samjeon-dong",
+    "11710620": "Garakbon-dong",
+    "11710631": "Garak 1-dong",
+    "11710632": "Garak 2-dong",
+    "11710641": "Munjeong 1-dong",
+    "11710642": "Munjeong 2-dong",
+    "11710646": "Jangji-dong",
+    "11710647": "Wirye-dong",
+    "11710650": "Jamsilbon-dong",
+    "11710670": "Jamsil 2-dong",
+    "11710680": "Jamsil 3-dong",
+    "11710690": "Jamsil 4-dong",
+    "11710710": "Jamsil 6-dong",
+    "11710720": "Jamsil 7-dong",
+    "11740515": "Gangil-dong",
+    "11740520": "Sangil-dong",
+    "11740530": "Myeongil 1-dong",
+    "11740540": "Myeongil 2-dong",
+    "11740550": "Godeok 1-dong",
+    "11740560": "Godeok 2-dong",
+    "11740570": "Amsa 1-dong",
+    "11740580": "Amsa 2-dong",
+    "11740590": "Amsa 3-dong",
+    "11740600": "Cheonho 1-dong",
+    "11740610": "Cheonho 2-dong",
+    "11740620": "Cheonho 3-dong",
+    "11740640": "Seongnae 1-dong",
+    "11740650": "Seongnae 2-dong",
+    "11740660": "Seongnae 3-dong",
+    "11740685": "Gil-dong",
+    "11740690": "Dunchon 1-dong",
+    "11740700": "Dunchon 2-dong"
+  },
+  "parks": {
+    "남산공원": {
+      "name_en": "Namsan Park",
+      "addr_en": "231 Samil-daero, Jung-gu, Seoul"
+    },
+    "길동생태공원": {
+      "name_en": "Gildong Ecological Park",
+      "addr_en": "1291 Cheonho-daero, Gangdong-gu, Seoul"
+    },
+    "서울숲": {
+      "name_en": "Seoul Forest",
+      "addr_en": "273 Ttukseom-ro, Seongdong-gu, Seoul"
+    },
+    "월드컵공원": {
+      "name_en": "World Cup Park",
+      "addr_en": "84 Haneulgongwon-ro, Mapo-gu, Seoul"
+    },
+    "진관근린공원(구파발폭포)": {
+      "name_en": "Jingwan Park (Gupabal Falls)",
+      "addr_en": "393 Jingwan-dong, Eunpyeong-gu, Seoul"
+    },
+    "중마루근린공원": {
+      "name_en": "Jungmaru Park",
+      "addr_en": "222 Yeongdeungpo-dong 2-ga, Yeongdeungpo-gu, Seoul"
+    },
+    "응봉공원 (대현산배수지공원)": {
+      "name_en": "Eungbong Park (Daehyeonsan Reservoir Park)",
+      "addr_en": "San 1-72 Geumho-dong 1-ga, Seongdong-gu, Seoul"
+    },
+    "매화근린공원": {
+      "name_en": "Maehwa Park",
+      "addr_en": "630-14 Deungchon-dong, Gangseo-gu, Seoul"
+    },
+    "성수근린공원": {
+      "name_en": "Seongsu Park",
+      "addr_en": "302-25 Seongsu 2-ga 3-dong, Seongdong-gu, Seoul"
+    },
+    "샛마을근린공원": {
+      "name_en": "Saetmaeul Park",
+      "addr_en": "288 Myeongil 1-dong, Gangdong-gu, Seoul"
+    },
+    "여의도근린공원": {
+      "name_en": "Yeouido Park",
+      "addr_en": "68 Yeouigongwon-ro, Yeongdeungpo-gu, Seoul"
+    },
+    "간데메근린공원": {
+      "name_en": "Gandeme Park",
+      "addr_en": "59 Seoulsiripdae-ro 2-gil, Dongdaemun-gu, Seoul"
+    },
+    "훈련원근린공원": {
+      "name_en": "Hullyeonwon Park",
+      "addr_en": "227 Eulji-ro, Jung-gu, Seoul"
+    },
+    "영등포근린공원": {
+      "name_en": "Yeongdeungpo Park",
+      "addr_en": "275 Singil-ro, Yeongdeungpo-gu, Seoul"
+    },
+    "보라매공원": {
+      "name_en": "Boramae Park",
+      "addr_en": "33 Yeouidaebang-ro 20-gil, Dongjak-gu, Seoul"
+    },
+    "어린이대공원": {
+      "name_en": "Seoul Children's Grand Park",
+      "addr_en": "216 Neungdong-ro, Gwangjin-gu, Seoul"
+    },
+    "천호근린공원": {
+      "name_en": "Cheonho Park",
+      "addr_en": "702 Olympic-ro, Gangdong-gu, Seoul"
+    },
+    "용산가족공원": {
+      "name_en": "Yongsan Family Park",
+      "addr_en": "185 Seobinggo-ro, Yongsan-gu, Seoul"
+    },
+    "독립근린공원": {
+      "name_en": "Seodaemun Independence Park",
+      "addr_en": "251 Tongil-ro, Seodaemun-gu, Seoul"
+    },
+    "낙산근린공원": {
+      "name_en": "Naksan Park",
+      "addr_en": "41 Naksan-gil, Jongno-gu, Seoul"
+    },
+    "매헌시민의숲": {
+      "name_en": "Maeheon Citizen's Forest",
+      "addr_en": "99 Maeheon-ro, Seocho-gu, Seoul"
+    },
+    "관악산공원": {
+      "name_en": "Gwanaksan Park",
+      "addr_en": "1 Gwanak-ro, Gwanak-gu, Seoul"
+    },
+    "효창근린공원": {
+      "name_en": "Hyochang Park",
+      "addr_en": "177-18 Hyochangwon-ro, Yongsan-gu, Seoul"
+    },
+    "감로천생태공원(관악산)": {
+      "name_en": "Gamnocheon Ecological Park (Gwanaksan)",
+      "addr_en": "373 Doksan-dong area, Geumcheon-gu, Seoul"
+    },
+    "개운산근린공원": {
+      "name_en": "Gaeunsan Park",
+      "addr_en": "949-73 Bugaksan-ro, Seongbuk-gu, Seoul"
+    },
+    "개웅산근린공원": {
+      "name_en": "Gaeungsan Park",
+      "addr_en": "San 13-1 Oryu-dong, Guro-gu, Seoul"
+    },
+    "경희궁": {
+      "name_en": "Gyeonghuigung Palace",
+      "addr_en": "55 Saemunan-ro, Jongno-gu, Seoul"
+    },
+    "국립서울현충원": {
+      "name_en": "Seoul National Cemetery",
+      "addr_en": "210 Hyeonchung-ro, Dongjak-gu, Seoul"
+    },
+    "계남근린공원": {
+      "name_en": "Gyenam Park",
+      "addr_en": "San 44-2 Sinjeong-dong area, Yangcheon-gu, Seoul"
+    },
+    "고척근린공원": {
+      "name_en": "Gocheok Park",
+      "addr_en": "39 Gocheok-ro 45-gil, Guro-gu, Seoul"
+    },
+    "파리근린공원": {
+      "name_en": "Paris Park",
+      "addr_en": "363 Mokdongdong-ro, Yangcheon-gu, Seoul"
+    },
+    "허준공원": {
+      "name_en": "Heojun Park",
+      "addr_en": "42 Heojun-ro 5-gil, Gangseo-gu, Seoul"
+    },
+    "궁동근린공원": {
+      "name_en": "Gungdong Park",
+      "addr_en": "19-24 Seongsan-ro 7-gil, Seodaemun-gu, Seoul"
+    },
+    "궁산근린공원": {
+      "name_en": "Gungsan Park",
+      "addr_en": "San 4-7, Gayang-dong, Gangseo-gu, Seoul"
+    },
+    "까치산근린공원": {
+      "name_en": "Kkachisan Park",
+      "addr_en": "San 32, Sadang-dong, Dongjak-gu, Seoul"
+    },
+    "꿩고개근린공원": {
+      "name_en": "Kkwonggogae Park",
+      "addr_en": "San 110, Banghwa-dong, Gangseo-gu, Seoul"
+    },
+    "노량진공원": {
+      "name_en": "Noryangjin Park",
+      "addr_en": "519, Daebang-dong (39 Yeouidaebang-ro 44-gil), Dongjak-gu, Seoul"
+    },
+    "답십리근린공원": {
+      "name_en": "Dapsimni Park",
+      "addr_en": "209 Dapsimni-ro, Dongdaemun-gu, Seoul"
+    },
+    "대모산도시자연공원": {
+      "name_en": "Daemosan Urban Nature Park",
+      "addr_en": "30-71 Gwangpyeong-ro 10-gil, Gangnam-gu, Seoul"
+    },
+    "탑골근린공원": {
+      "name_en": "Tapgol Park",
+      "addr_en": "99 Jong-ro, Jongno-gu, Seoul"
+    },
+    "갈산근린공원": {
+      "name_en": "Galsan Park",
+      "addr_en": "162-56, Sinjeong-dong, Yangcheon-gu, Seoul"
+    },
+    "천마근린공원": {
+      "name_en": "Cheonma Park",
+      "addr_en": "San 1-1, Macheon-dong, Songpa-gu, Seoul"
+    },
+    "도곡근린공원": {
+      "name_en": "Dogok Park",
+      "addr_en": "San 31-1, Dogok-dong, Gangnam-gu, Seoul"
+    },
+    "도산근린공원": {
+      "name_en": "Dosan Park",
+      "addr_en": "20 Dosan-daero 45-gil, Gangnam-gu, Seoul"
+    },
+    "청량공원": {
+      "name_en": "Cheongnyang Park",
+      "addr_en": "50 Hwarang-ro 18ga-gil, Seongbuk-gu, Seoul"
+    },
+    "초안산근린공원": {
+      "name_en": "Choansan Park",
+      "addr_en": "San 157, Chang-dong, Dobong-gu, Seoul"
+    },
+    "동명근린공원": {
+      "name_en": "Dongmyeong Park",
+      "addr_en": "229, Godeok 2-dong, Gangdong-gu, Seoul"
+    },
+    "마로니에공원": {
+      "name_en": "Marronnier Park",
+      "addr_en": "1 Daehak-ro 8-gil, Jongno-gu, Seoul"
+    },
+    "자매근린공원": {
+      "name_en": "Ankara Park (Jamae Park)",
+      "addr_en": "166 Uisadang-daero, Yeongdeungpo-gu, Seoul"
+    },
+    "장지근린공원": {
+      "name_en": "Jangji Park",
+      "addr_en": "San 11, Jangji-dong, Songpa-gu, Seoul"
+    },
+    "명일근린공원": {
+      "name_en": "Myeongil Park",
+      "addr_en": "135, Sangil-dong, Gangdong-gu, Seoul"
+    },
+    "방화근린공원": {
+      "name_en": "Banghwa Park",
+      "addr_en": "176 Geumnanghwa-ro, Gangseo-gu, Seoul"
+    },
+    "아시아근린공원": {
+      "name_en": "Asia Park",
+      "addr_en": "44 Olympic-ro, Songpa-gu, Seoul"
+    },
+    "배봉산근린공원": {
+      "name_en": "Baebongsan Park",
+      "addr_en": "12-14 Hancheon-ro 43-gil, Dongdaemun-gu, Seoul"
+    },
+    "안산도시자연공원": {
+      "name_en": "Ansan Urban Nature Park",
+      "addr_en": "San 33-98, Hongje-dong, Seodaemun-gu, Seoul"
+    },
+    "염창근린공원": {
+      "name_en": "Yeomchang Park",
+      "addr_en": "San 24-1, Yeomchang-dong, Gangseo-gu, Seoul"
+    },
+    "백련근린공원": {
+      "name_en": "Baengnyeon Park",
+      "addr_en": "507-22 Tongil-ro, Seodaemun-gu, Seoul"
+    },
+    "오금근린공원": {
+      "name_en": "Ogeum Park",
+      "addr_en": "363 Ogeum-ro, Songpa-gu, Seoul"
+    },
+    "오동근린공원": {
+      "name_en": "Odong Park",
+      "addr_en": "San 20-1, Beon-dong, Gangbuk-gu, Seoul"
+    },
+    "온수도시자연공원": {
+      "name_en": "Onsu Urban Nature Park",
+      "addr_en": "San 2-60, Gaebong-dong, Guro-gu, Seoul"
+    },
+    "봉은공원": {
+      "name_en": "Bongeun Park",
+      "addr_en": "75, Samseong-dong, Gangnam-gu, Seoul"
+    },
+    "올림픽공원": {
+      "name_en": "Olympic Park",
+      "addr_en": "424 Olympic-ro, Songpa-gu, Seoul"
+    },
+    "와룡근린공원": {
+      "name_en": "Waryong Park",
+      "addr_en": "192 Waryonggongwon-gil, Jongno-gu, Seoul"
+    },
+    "봉화산근린공원": {
+      "name_en": "Bonghwasan Park",
+      "addr_en": "San 46-1, Muk-dong, Jungnang-gu, Seoul"
+    },
+    "북악산도시자연공원": {
+      "name_en": "Bugaksan Urban Nature Park",
+      "addr_en": "San 2-6, Buam-dong, Jongno-gu, Seoul"
+    },
+    "북한산국립공원": {
+      "name_en": "Bukhansan National Park",
+      "addr_en": "Gangbuk-gu, Dobong-gu, Seodaemun-gu, Seongbuk-gu, Eunpyeong-gu, and Jongno-gu area, Seoul; Goyang-si, Yangju-si, and Uijeongbu-si area, Gyeonggi-do"
+    },
+    "외국인묘지공원": {
+      "name_en": "Yanghwajin Foreign Missionary Cemetery",
+      "addr_en": "46 Yanghwajin-gil, Mapo-gu, Seoul"
+    },
+    "불광근린공원": {
+      "name_en": "Bulgwang Park",
+      "addr_en": "San 33-1, Bulgwang-dong, Eunpyeong-gu, Seoul"
+    },
+    "용마폭포공원": {
+      "name_en": "Yongma Waterfall Park",
+      "addr_en": "San 1-4, Myeonmok-dong, Jungnang-gu, Seoul"
+    },
+    "사육신공원": {
+      "name_en": "Sayuksin Park",
+      "addr_en": "191 Noryangjin-ro, Dongjak-gu, Seoul"
+    },
+    "용왕산근린공원": {
+      "name_en": "Yongwangsan Park",
+      "addr_en": "199-51, Mok-dong, Yangcheon-gu, Seoul"
+    },
+    "사직근린공원": {
+      "name_en": "Sajik Park",
+      "addr_en": "5 Sajik-ro 9-gil, Jongno-gu, Seoul"
+    },
+    "우장산근린공원": {
+      "name_en": "Ujangsan Park",
+      "addr_en": "San 4-5, Naebalsan-dong, Gangseo-gu, Seoul"
+    },
+    "삼일근린공원": {
+      "name_en": "Samil Park",
+      "addr_en": "San 24-17, Sadang-dong, Dongjak-gu, Seoul"
+    },
+    "삼청근린공원": {
+      "name_en": "Samcheong Park",
+      "addr_en": "134-1 Bukchon-ro, Jongno-gu, Seoul"
+    },
+    "인왕산도시자연공원": {
+      "name_en": "Inwangsan Urban Nature Park",
+      "addr_en": "San 3-1, Ogin-dong, Jongno-gu, Seoul"
+    },
+    "상도근린공원": {
+      "name_en": "Sangdo Park",
+      "addr_en": "27-6 Seongdae-ro 6sa-gil, Dongjak-gu, Seoul"
+    },
+    "일자산근린공원": {
+      "name_en": "Iljasan Park",
+      "addr_en": "660 Dongnam-ro, Gangdong-gu, Seoul"
+    },
+    "쌍문근린공원": {
+      "name_en": "Ssangmun Park",
+      "addr_en": "San 80, Ssangmun-dong, Dobong-gu, Seoul"
+    },
+    "송파나루근린공원(석촌호수)": {
+      "name_en": "Songpa Naru Park (Seokchon Lake)",
+      "addr_en": "148 Jamsil-ro, Songpa-gu, Seoul"
+    },
+    "선유도근린공원": {
+      "name_en": "Seonyudo Park",
+      "addr_en": "343 Seonyu-ro, Yeongdeungpo-gu, Seoul (Seonyudo Park Management Office)"
+    },
+    "손기정체육공원": {
+      "name_en": "Son Kee-chung Sports Park",
+      "addr_en": "101 Songijeong-ro, Jung-gu, Seoul"
+    },
+    "성북근린공원": {
+      "name_en": "Seongbuk Park",
+      "addr_en": "616-1055, Donam-dong, Seongbuk-gu, Seoul"
+    },
+    "봉제산공원": {
+      "name_en": "Bongjesan Park",
+      "addr_en": "San 41-6, Hwagok-dong, Gangseo-gu, Seoul"
+    },
+    "서울창포원": {
+      "name_en": "Seoul Iris Garden",
+      "addr_en": "916 Madeul-ro, Dobong-gu, Seoul"
+    },
+    "북서울꿈의숲": {
+      "name_en": "Dream Forest",
+      "addr_en": "173 Wolgye-ro, Gangbuk-gu, Seoul"
+    },
+    "서서울호수공원": {
+      "name_en": "Seoseoul Lake Park",
+      "addr_en": "20 Nambusunhwan-ro 64-gil, Yangcheon-gu, Seoul"
+    },
+    "중랑캠핑숲": {
+      "name_en": "Jungnang Camping Forest",
+      "addr_en": "160 Songnim-gil, Jungnang-gu, Seoul / 74, Mangu-dong, Jungnang-gu, Seoul (Youth Experience Forest)"
+    },
+    "솔밭근린공원": {
+      "name_en": "Solbat Park",
+      "addr_en": "80 area, Ui-dong, Gangbuk-gu, Seoul"
+    },
+    "금천체육공원(관악산)": {
+      "name_en": "Geumcheon Sports Park (Gwanaksan)",
+      "addr_en": "San 118-4 area, Doksan-dong, Geumcheon-gu, Seoul"
+    },
+    "금천폭포근린공원": {
+      "name_en": "Geumcheon Waterfall Park",
+      "addr_en": "61 Siheung-daero 38-gil, Geumcheon-gu, Seoul"
+    },
+    "만수천공원(관악산)": {
+      "name_en": "Mansucheon Park (Gwanaksan)",
+      "addr_en": "San 8 area, Doksan-dong, Geumcheon-gu, Seoul"
+    },
+    "발바닥공원": {
+      "name_en": "Balbadak Ecological Park",
+      "addr_en": "33 Sirubong-ro 6-gil, Dobong-gu, Seoul"
+    },
+    "월천근린공원": {
+      "name_en": "Wolcheon Park",
+      "addr_en": "28, Chang-dong, Dobong-gu, Seoul"
+    },
+    "용두근린공원": {
+      "name_en": "Yongdu Park",
+      "addr_en": "34-1 area, Yongdu-dong, Dongdaemun-gu, Seoul"
+    },
+    "상암근린공원": {
+      "name_en": "Sangam Park",
+      "addr_en": "1761, Sangam-dong, Mapo-gu, Seoul"
+    },
+    "와우근린공원": {
+      "name_en": "Wau Park",
+      "addr_en": "3-193 area, Changjeon-dong, Mapo-gu, Seoul (behind Hongik University)"
+    },
+    "금호근린공원": {
+      "name_en": "Geumho Park",
+      "addr_en": "18 Jangteo 1-gil, Seongdong-gu, Seoul"
+    },
+    "달맞이근린공원": {
+      "name_en": "Dalmaji Park",
+      "addr_en": "San 1-1, Oksu-dong, Seongdong-gu, Seoul"
+    },
+    "문정근린공원": {
+      "name_en": "Munjeong Park",
+      "addr_en": "18-4, Munjeong-dong, Songpa-gu, Seoul"
+    },
+    "문화예술공원": {
+      "name_en": "Culture & Arts Park",
+      "addr_en": "40 Baumoe-ro 12-gil, Seocho-gu, Seoul"
+    },
+    "세종로공원": {
+      "name_en": "Sejongno Park",
+      "addr_en": "189 Sejong-daero, Jongno-gu, Seoul"
+    },
+    "샘말공원(관악산근린공원 샘말지구)": {
+      "name_en": "Saemmal Park (Gwanaksan Park Saemmal District)",
+      "addr_en": "San 63-1 area, Daehak-dong, Gwanak-gu, Seoul"
+    },
+    "초안산생태공원": {
+      "name_en": "Choansan Ecological Park",
+      "addr_en": "San 24, Chang-dong, Dobong-gu, Seoul"
+    },
+    "푸른수목원": {
+      "name_en": "Pureun Arboretum",
+      "addr_en": "2117 Seohaean-ro, Guro-gu, Seoul (Management Office)"
+    },
+    "서오능도시자연공원": {
+      "name_en": "Seooreung Urban Nature Park",
+      "addr_en": "Gupabal-dong, Galhyeon-dong, Jingwannae-dong, Eunpyeong-gu, Seoul"
+    },
+    "개화근린공원": {
+      "name_en": "Gaehwa Park",
+      "addr_en": "San 17, Gaehwa-dong, Gangseo-gu, Seoul"
+    },
+    "아차산공원": {
+      "name_en": "Achasan Park",
+      "addr_en": "370, Gwangjang-dong, Gwangjin-gu, Seoul"
+    },
+    "인능산도시자연공원": {
+      "name_en": "Inneungsan Urban Nature Park",
+      "addr_en": "San 12-404, Naegok-dong, Seocho-gu, Seoul"
+    },
+    "구룡산도시자연공원": {
+      "name_en": "Guryongsan Urban Nature Park",
+      "addr_en": "San 25-1, Yeomgok-dong, Seocho-gu, Seoul"
+    },
+    "우면산도시자연공원": {
+      "name_en": "Umyeonsan Urban Nature Park",
+      "addr_en": "San 35-1, Umyeon-dong, Seocho-gu, Seoul"
+    },
+    "향림근린공원": {
+      "name_en": "Hyangnim Park",
+      "addr_en": "San 55, Jingwan-dong, Eunpyeong-gu, Seoul"
+    },
+    "신사근린공원": {
+      "name_en": "Sinsa Park",
+      "addr_en": "San 80-4, Sinsa-dong, Eunpyeong-gu, Seoul"
+    },
+    "광평근린공원": {
+      "name_en": "Gwangpyeong Park",
+      "addr_en": "San 10-1, Suseo-dong, Gangnam-gu, Seoul"
+    },
+    "청담근린공원": {
+      "name_en": "Cheongdam Park",
+      "addr_en": "66, Cheongdam-dong, Gangnam-gu, Seoul"
+    },
+    "허브천문공원": {
+      "name_en": "Herb Astronomical Park",
+      "addr_en": "San 94, Dunchon-dong, Gangdong-gu, Seoul"
+    },
+    "GTX연신849광장(구 물빛공원)": {
+      "name_en": "GTX Yeonsin 849 Plaza (formerly Mulbit Park)",
+      "addr_en": "849 Tongil-ro, Eunpyeong-gu, Seoul"
+    },
+    "숭인근린공원": {
+      "name_en": "Sungin Park",
+      "addr_en": "58, Sungin-dong, Jongno-gu, Seoul"
+    },
+    "서일대뒷산공원": {
+      "name_en": "Seoil University Rear Mountain Park",
+      "addr_en": "San 19, Myeonmok-dong, Jungnang-gu, Seoul"
+    },
+    "용마도시자연공원(사가정공원)": {
+      "name_en": "Yongma Urban Nature Park (Sagajeong Park)",
+      "addr_en": "San 50, Myeonmok 7-dong, Jungnang-gu, Seoul"
+    },
+    "문화비축기지": {
+      "name_en": "Oil Tank Culture Park",
+      "addr_en": "87 Jeungsan-ro, Mapo-gu, Seoul"
+    },
+    "경춘선숲길": {
+      "name_en": "Gyeongchun Line Forest Park",
+      "addr_en": "San 82-2 Gongneung 2-dong, Nowon-gu, Seoul"
+    },
+    "율현공원": {
+      "name_en": "Yulhyeon Park",
+      "addr_en": "91 Bamgogae-ro 24-gil, Gangnam-gu, Seoul"
+    },
+    "서울식물원": {
+      "name_en": "Seoul Botanic Park",
+      "addr_en": "161 Magokdong-ro, Gangseo-gu, Seoul"
+    },
+    "경의선숲길": {
+      "name_en": "Gyeongui Line Forest Park",
+      "addr_en": "Yeonnam-dong, Mapo-gu to Yongsan Culture & Sports Center, Yongsan-gu, Seoul"
+    },
+    "서소문역사공원": {
+      "name_en": "Seosomun Shrine History Park",
+      "addr_en": "16-2, Uiju-ro 2-ga, Jung-gu, Seoul"
+    },
+    "순화문화공원": {
+      "name_en": "Sunhwa Culture Park",
+      "addr_en": "216-2, Sunhwa-dong, Jung-gu, Seoul"
+    }
+  }
+}

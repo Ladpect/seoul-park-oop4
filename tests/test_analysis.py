@@ -1,3 +1,5 @@
+import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -8,8 +10,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT / "analysis") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 
-from build_dashboard import DashboardBuilder
-from topic1_visualize import BaseAnalyzer, SeasonalChangeAnalyzer
+from build_dashboard import DashboardBuilder, TranslationCatalog
+from topic1_visualize import BaseAnalyzer, PARK_MAP_CSV_PATH, SEOUL_GEOJSON_PATH, SeasonalChangeAnalyzer
 from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer
 
 
@@ -169,6 +171,57 @@ class TestAnalyzers(unittest.TestCase):
             min_lon, max_lon, min_lat, max_lat = gu_bounds[gu_key]
             self.assertLess(min_lon, max_lon)
             self.assertLess(min_lat, max_lat)
+
+        self.assertTrue(payload["parks"])
+        park = payload["parks"][0]
+        self.assertEqual(park["name_en"], "Seoul Forest")
+        self.assertIn("Ttukseom-ro", park["addr_en"])
+        self.assertEqual(park["gu_en"], "Seongdong-gu")
+        self.assertEqual(park["dong_nm_en"], "Seongsu 1-ga 1-dong, Seongdong-gu")
+        self.assertEqual(park["fclt"], "산책로")
+
+        dong = payload["dongs"]["11200650"]
+        self.assertEqual(dong["gu_en"], "Seongdong-gu")
+        self.assertEqual(dong["short_en"], "Seongsu 1-ga 1-dong")
+        self.assertEqual(dong["name_en"], "Seongsu 1-ga 1-dong, Seongdong-gu")
+
+    def test_i18n_catalog_completeness_and_no_hangul(self):
+        catalog_path = PROJECT_ROOT / "analysis" / "i18n_en.json"
+        self.assertTrue(catalog_path.exists())
+        catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+        geo = json.loads(SEOUL_GEOJSON_PATH.read_text(encoding="utf-8"))
+        expected_gus = {f["properties"]["gu_nm"] for f in geo["features"]} | {"강북구 등"}
+        expected_dongs = {f["properties"]["dong_cd"] for f in geo["features"]}
+        parks_df = pd.read_csv(PARK_MAP_CSV_PATH, dtype={"dong_cd": str})
+        expected_parks = set(parks_df["park_nm"].astype(str))
+
+        self.assertEqual(set(catalog["gus"].keys()), expected_gus)
+        self.assertEqual(set(catalog["dongs"].keys()), expected_dongs)
+        self.assertEqual(set(catalog["parks"].keys()), expected_parks)
+
+        hangul_re = re.compile(r"[\uac00-\ud7a3\u3130-\u318f]")
+        for val in catalog["gus"].values():
+            self.assertTrue(val)
+            self.assertIsNone(hangul_re.search(val))
+        for val in catalog["dongs"].values():
+            self.assertTrue(val)
+            self.assertIsNone(hangul_re.search(val))
+        for p in catalog["parks"].values():
+            self.assertTrue(p["name_en"])
+            self.assertTrue(p["addr_en"])
+            self.assertIsNone(hangul_re.search(p["name_en"]))
+            self.assertIsNone(hangul_re.search(p["addr_en"]))
+
+    def test_generated_dashboard_has_korean_default_language_toggle(self):
+        html_path = PROJECT_ROOT / "docs" / "index.html"
+        self.assertTrue(html_path.exists())
+        html = html_path.read_text(encoding="utf-8")
+        self.assertIn('<html lang="ko">', html)
+        self.assertIn('class="lang-btn active" data-lang="ko"', html)
+        self.assertIn('class="lang-btn" data-lang="en"', html)
+        self.assertIn("let currentLang = 'ko';", html)
+        self.assertIn("TranslationCatalog", TranslationCatalog.__name__)
 
 
 if __name__ == "__main__":

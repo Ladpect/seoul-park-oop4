@@ -30,7 +30,39 @@ from topic1_visualize import (
     SeoulParkMapChart,
     YearlyTrendChart,
 )
-from topic2_visualize import AgeGroupAnalyzer, AgeRateBarChart, AgeYearlyTrendChart
+from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer, AgeRateBarChart, AgeYearlyTrendChart
+
+I18N_EN_PATH = ANALYSIS_DIR / "i18n_en.json"
+
+
+class TranslationCatalog:
+    """한국어 행정구역·공원명·주소의 영문 번역 카탈로그 로더"""
+
+    def __init__(self, json_path: Path = I18N_EN_PATH):
+        self.path = Path(json_path)
+        if self.path.exists():
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        else:
+            data = {}
+        self._gus: dict[str, str] = data.get("gus", {})
+        self._dongs: dict[str, str] = data.get("dongs", {})
+        self._parks: dict[str, dict[str, str]] = data.get("parks", {})
+
+    def gu_en(self, gu_ko: str) -> str:
+        return self._gus.get(gu_ko, gu_ko)
+
+    def dong_short_en(self, dong_cd: str, fallback: str = "") -> str:
+        return self._dongs.get(dong_cd, fallback)
+
+    def dong_full_en(self, dong_cd: str, gu_ko: str, fallback: str = "") -> str:
+        fallback_short = fallback.split(" ", 1)[1] if " " in fallback else fallback
+        short_en = self.dong_short_en(dong_cd, fallback_short)
+        gu_en = self.gu_en(gu_ko)
+        return f"{short_en}, {gu_en}" if gu_en else short_en
+
+    def park_en(self, park_nm: str, addr_ko: str = "") -> tuple[str, str]:
+        entry = self._parks.get(park_nm, {})
+        return entry.get("name_en", park_nm), entry.get("addr_en", addr_ko)
 
 ICON_MAP = (
     '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
@@ -63,12 +95,14 @@ class DashboardBuilder:
         names: DongNameLookup,
         park_source: ParkMapSource,
         charts: dict[str, Chart],
+        translations: TranslationCatalog | None = None,
     ):
         self.t1 = t1
         self.t2 = t2
         self.names = names
         self.park_source = park_source
         self.charts = charts
+        self.translations = translations or TranslationCatalog()
 
     def _build_detail_payload(self) -> dict:
         """분석기(t1, t2)와 공원·지리 저장소 결과를 대시보드용 상세 JSON으로 결합"""
@@ -79,24 +113,47 @@ class DashboardBuilder:
         parks_by_dong, parks_by_gu, parks_list = {}, {}, []
         for _, row in parks_df.iterrows():
             fclt = str(row["main_fclt"]) if pd.notna(row["main_fclt"]) else ""
-            dong_gu = self.names.dong_to_gu.get(row["canon_cd"], str(row["rgn"]))
+            dong_cd = row["canon_cd"]
+            raw_rgn = str(row["rgn"]).strip() if pd.notna(row["rgn"]) else ""
+            dong_gu = self.names.dong_to_gu.get(dong_cd, raw_rgn)
+            rgn_ko = raw_rgn if raw_rgn and raw_rgn.lower() != "nan" else dong_gu
+            dong_nm_ko = self.names.name(dong_cd)
+            addr_ko = str(row["park_addr"]).strip() if pd.notna(row["park_addr"]) else ""
+            park_nm_ko = str(row["park_nm"])
+            name_en, addr_en = self.translations.park_en(park_nm_ko, addr_ko)
             info = {
-                "name": str(row["park_nm"]),
-                "gu": str(row["rgn"]),
+                "name": park_nm_ko,
+                "name_en": name_en,
+                "gu": rgn_ko,
+                "gu_en": self.translations.gu_en(rgn_ko),
                 "dong_gu": dong_gu,
-                "dong_cd": row["canon_cd"],
-                "dong_nm": self.names.name(row["canon_cd"]),
+                "dong_gu_en": self.translations.gu_en(dong_gu),
+                "dong_cd": dong_cd,
+                "dong_nm": dong_nm_ko,
+                "dong_nm_en": self.translations.dong_full_en(dong_cd, dong_gu, dong_nm_ko),
                 "area_ha": round(float(row["area_m2"]) / 10000.0, 1),
-                "addr": str(row["park_addr"]) if pd.notna(row["park_addr"]) else "",
+                "addr": addr_ko,
+                "addr_en": addr_en,
                 "fclt": fclt[:140] + ("..." if len(fclt) > 140 else ""),
             }
             parks_list.append(info)
-            parks_by_dong.setdefault(row["canon_cd"], []).append(info)
+            parks_by_dong.setdefault(dong_cd, []).append(info)
             parks_by_gu.setdefault(dong_gu, []).append(info)
 
         ages_by_dong = self.t2.dong_age_details()
         dongs = self.t1.dong_details(self.names, parks_by_dong, ages_by_dong)
+        for cd, d_info in dongs.items():
+            gu_ko = d_info["gu"]
+            d_info["gu_en"] = self.translations.gu_en(gu_ko)
+            short_ko = d_info["name"].split(" ", 1)[1] if " " in d_info["name"] else d_info["name"]
+            d_info["short_en"] = self.translations.dong_short_en(cd, short_ko)
+            d_info["name_en"] = self.translations.dong_full_en(cd, gu_ko, d_info["name"])
+
         gus = self.t1.gu_summaries(self.names.dong_to_gu, parks_by_gu)
+        for gu_nm, g_info in gus.items():
+            g_info["name_en"] = self.translations.gu_en(gu_nm)
+            for item in g_info["dongs"]:
+                item["name_en"] = self.translations.dong_short_en(item["cd"], item["name"])
 
         def extract_lines(features, filter_set=None):
             res = {}
@@ -157,7 +214,7 @@ class DashboardBuilder:
         )
         top5_rows_html = "\n".join(
             f"<tr class='clickable-row' onclick=\"showDongDetail('{row['dong_cd']}')\">"
-            f"<td>{row['dong_nm']}</td>"
+            f"<td data-dong-cd=\"{row['dong_cd']}\">{row['dong_nm']}</td>"
             f"<td class='num'>{row['jan']:,.0f} → {row['may']:,.0f}</td>"
             f"<td class='num accent'>{row['rate']:+.1f}%</td></tr>"
             for _, row in top5_parks.iterrows()
@@ -165,7 +222,7 @@ class DashboardBuilder:
 
         t1_table_rows = "\n".join(
             f"<tr class='{'row-highlight' if row['period'] == '4개년' else ''}'>"
-            f"<td>{row['period']}</td>"
+            f"<td{' data-period=\"4개년\"' if row['period'] == '4개년' else ''}>{row['period']}</td>"
             f"<td class='num'>{row['mean_park']:+.2f}%</td>"
             f"<td class='num'>{row['mean_none']:+.2f}%</td>"
             f"<td class='num accent'>{row['diff']:+.2f}%p</td></tr>"
@@ -175,9 +232,10 @@ class DashboardBuilder:
         t2_pooled = self.t2.summary().query("period == '4개년'")
         t2_ranked = t2_pooled[t2_pooled["age_group"] != "전체 인구"].sort_values("diff", ascending=False)
         kids = t2_pooled[t2_pooled["age_group"] == "유아동 (0~9세)"].iloc[0]
+        young_adults = t2_pooled[t2_pooled["age_group"] == "청년층 (20~39세)"].iloc[0]
 
         t2_table_rows = "\n".join(
-            f"<tr><td>{row['age_group']}</td>"
+            f"<tr><td data-age-key=\"{row['age_group']}\">{row['age_group']}</td>"
             f"<td class='num'>{row['mean_park']:+.2f}%</td>"
             f"<td class='num'>{row['mean_none']:+.2f}%</td>"
             f"<td class='num accent'>{row['diff']:+.2f}%p</td></tr>"
@@ -226,6 +284,23 @@ class DashboardBuilder:
       border-bottom: 1px solid var(--border);
       padding: 34px 0 28px;
     }}
+    .header-inner {{
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; flex-wrap: wrap;
+    }}
+    .header-copy {{ flex: 1 1 560px; min-width: 0; }}
+    .lang-toggle {{ flex-shrink: 0; margin-top: 2px; }}
+    .lang-btn {{
+      font-family: inherit; font-size: 12px; font-weight: 500;
+      color: var(--text-muted); background: transparent;
+      border: 1px solid transparent; border-radius: 3px; padding: 5px 11px; cursor: pointer;
+      transition: color 0.15s ease, background-color 0.15s ease;
+    }}
+    .lang-btn:hover {{ color: var(--text-strong); }}
+    .lang-btn.active {{
+      background: var(--surface); color: var(--accent);
+      font-weight: 600; border-color: var(--border);
+    }}
     h1 {{
       margin: 0 0 10px; font-size: 28px; font-weight: 700;
       letter-spacing: -0.03em; color: var(--text-strong); line-height: 1.25;
@@ -268,7 +343,7 @@ class DashboardBuilder:
     @media (max-width: 980px) {{ .split-left, .split-right {{ grid-template-columns: 1fr; }} }}
     .sidebar-panel {{ padding: 0; }}
     .sidebar-scroll {{
-      padding: 28px 30px;
+      padding: 24px 28px 16px;
       overflow-y: auto;
       max-height: 560px;
       scrollbar-gutter: stable;
@@ -329,8 +404,10 @@ class DashboardBuilder:
       text-align: left; font-weight: 500; font-size: 11px;
       color: var(--text-muted); padding: 7px 4px; border-bottom: 1px solid var(--border);
     }}
-    table.clean-table th.num, table.clean-table td.num {{ text-align: right; font-variant-numeric: tabular-nums; }}
+    table.clean-table th.num, table.clean-table td.num {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }}
     table.clean-table td {{ padding: 8px 4px; border-bottom: 1px solid #F3F4F6; color: var(--text-body); }}
+    table.top5-table td {{ padding: 6.5px 4px; line-height: 1.3; }}
+    .top5-sub {{ display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }}
     table.clean-table tr:last-child td {{ border-bottom: none; }}
     table.clean-table tr.row-highlight td {{ font-weight: 600; color: var(--text-strong); background: #FAFAFA; }}
     tr.clickable-row {{ cursor: pointer; transition: background-color 0.12s ease; }}
@@ -361,7 +438,7 @@ class DashboardBuilder:
     }}
     .year-cell .yr {{ font-size: 11px; color: var(--text-muted); }}
     .year-cell .val {{ font-size: 13px; font-weight: 600; color: var(--text-strong); margin-top: 2px; }}
-    .age-bar-row {{ display: grid; grid-template-columns: 52px 1fr 56px; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }}
+    .age-bar-row {{ display: grid; grid-template-columns: 82px 1fr 56px; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; }}
     .bar-track {{ height: 6px; background: #F3F4F6; border-radius: 3px; overflow: hidden; }}
     .bar-fill {{ height: 100%; background: var(--accent); border-radius: 3px; }}
     .bar-fill.neg {{ background: #9CA3AF; }}
@@ -396,17 +473,23 @@ class DashboardBuilder:
 <body>
 
 <header>
-  <div class="container">
-    <h1>서울시 도시공원이 주간 생활인구에 미치는 영향</h1>
-    <p>서울 424개 행정동(공원 보유 102개 · 미보유 322개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.</p>
+  <div class="container header-inner">
+    <div class="header-copy">
+      <h1 data-i18n="header.title">서울시 도시공원이 주간 생활인구에 미치는 영향</h1>
+      <p data-i18n="header.desc">서울 424개 행정동(공원 보유 102개 · 미보유 322개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.</p>
+    </div>
+    <div class="segmented lang-toggle" role="group" aria-label="Language">
+      <button type="button" class="lang-btn active" data-lang="ko" onclick="setLanguage('ko')">한국어</button>
+      <button type="button" class="lang-btn" data-lang="en" onclick="setLanguage('en')">English</button>
+    </div>
   </div>
 </header>
 
 <nav class="nav-tabs">
   <div class="container nav-list">
-    <button class="tab-btn active" onclick="switchTab('overview', this)">{ICON_MAP} 서울 한눈에 보기</button>
-    <button class="tab-btn" onclick="switchTab('topic1', this)">{ICON_CHART} 계절별 변동 분석</button>
-    <button class="tab-btn" onclick="switchTab('topic2', this)">{ICON_USERS} 세대별 반응도</button>
+    <button class="tab-btn active" onclick="switchTab('overview', this)">{ICON_MAP} <span data-i18n="nav.overview">서울 한눈에 보기</span></button>
+    <button class="tab-btn" onclick="switchTab('topic1', this)">{ICON_CHART} <span data-i18n="nav.topic1">계절별 변동 분석</span></button>
+    <button class="tab-btn" onclick="switchTab('topic2', this)">{ICON_USERS} <span data-i18n="nav.topic2">세대별 반응도</span></button>
   </div>
 </nav>
 
@@ -417,26 +500,26 @@ class DashboardBuilder:
       <div class="panel sidebar-panel" id="overview-sidebar">
         <div class="sidebar-scroll" id="overview-sidebar-scroll">
           <div id="overview-summary">
-            <div class="section-kicker">핵심 발견 · 주말 낮(10–17시)</div>
+            <div class="section-kicker" data-i18n="overview.kicker">핵심 발견 · 주말 낮(10–17시)</div>
             <div class="hero-stat">{t1_wknd['diff']:+.2f}%p</div>
-            <p class="hero-desc">
+            <p class="hero-desc" data-i18n="overview.hero_desc">
               겨울(1월) 대비 봄(5월) 생활인구 증가율에서 공원 보유 동({t1_wknd['mean_park']:+.2f}%)이
               미보유 동({t1_wknd['mean_none']:+.2f}%)보다 유의미하게 앞섰습니다.
             </p>
 
             <table class="clean-table">
               <tbody>
-                <tr><td>분석 행정동</td><td class="num">424개 동 (25개 자치구)</td></tr>
-                <tr><td>표시 공원 수</td><td class="num">127개 주요 공원</td></tr>
-                <tr><td>분석 시간대</td><td class="num">주말·공휴일 낮 10–17시</td></tr>
-                <tr><td>최대 수혜 세대</td><td class="num accent">유아동 0–9세 ({kids['diff']:+.2f}%p)</td></tr>
+                <tr><td data-i18n="overview.stat_dongs_label">분석 행정동</td><td class="num" data-i18n="overview.stat_dongs_val">424개 동 (25개 자치구)</td></tr>
+                <tr><td data-i18n="overview.stat_parks_label">표시 공원 수</td><td class="num" data-i18n="overview.stat_parks_val">127개 주요 공원</td></tr>
+                <tr><td data-i18n="overview.stat_hours_label">분석 시간대</td><td class="num" data-i18n="overview.stat_hours_val">주말·공휴일 낮 10–17시</td></tr>
+                <tr><td data-i18n="overview.stat_age_label">최대 수혜 세대</td><td class="num accent" data-i18n="overview.stat_age_val">유아동 0–9세 ({kids['diff']:+.2f}%p)</td></tr>
               </tbody>
             </table>
 
-            <div class="sub-heading">봄철 증가율 상위 공원 보유 동 TOP 5</div>
-            <table class="clean-table">
+            <div class="sub-heading" data-i18n="overview.top5_title">봄철 증가율 상위 공원 보유 동 TOP 5</div>
+            <table class="clean-table top5-table">
               <thead>
-                <tr><th>행정동</th><th class="num">1월 → 5월</th><th class="num">증가율</th></tr>
+                <tr><th data-i18n="table.dong">행정동</th><th class="num" data-i18n="table.jan_may">1월 → 5월</th><th class="num" data-i18n="table.rate">증가율</th></tr>
               </thead>
               <tbody>
                 {top5_rows_html}
@@ -451,16 +534,16 @@ class DashboardBuilder:
       <div class="panel chart-panel" id="map-panel">
         <div class="map-toolbar">
           <div class="toolbar-left">
-            <span class="toolbar-label">자치구 필터</span>
+            <span class="toolbar-label" data-i18n="map.gu_filter">자치구 필터</span>
             <select id="gu-select" class="gu-select" onchange="selectGu(this.value)">
-              <option value="ALL">서울 전체 (424개 동)</option>
+              <option value="ALL" data-i18n="map.all_gus">서울 전체 (424개 동)</option>
               {gu_options}
             </select>
-            <button id="gu-reset-btn" class="back-btn" style="margin:0;display:none;" onclick="selectGu('ALL')">전체 보기</button>
+            <button id="gu-reset-btn" class="back-btn" style="margin:0;display:none;" onclick="selectGu('ALL')" data-i18n="map.reset">전체 보기</button>
           </div>
           <div class="segmented">
-            <button class="seg-btn active" onclick="setColorMode('rate', this)">봄철 증가율 (%)</button>
-            <button class="seg-btn" onclick="setColorMode('park', this)">공원 보유 여부</button>
+            <button class="seg-btn active" onclick="setColorMode('rate', this)" data-i18n="map.mode_rate">봄철 증가율 (%)</button>
+            <button class="seg-btn" onclick="setColorMode('park', this)" data-i18n="map.mode_park">공원 보유 여부</button>
           </div>
         </div>
         {map_chart.to_div(include_js=True)}
@@ -471,15 +554,15 @@ class DashboardBuilder:
   <section id="topic1" class="tab-pane">
     <div class="split-left">
       <div class="panel">
-        <div class="section-kicker">주제 1 · 연도별 추이 비교</div>
-        <div class="hero-stat">4 / 4개년</div>
-        <p class="hero-desc">
+        <div class="section-kicker" data-i18n="topic1.kicker">주제 1 · 연도별 추이 비교</div>
+        <div class="hero-stat" data-i18n="topic1.hero_stat">4 / 4개년</div>
+        <p class="hero-desc" data-i18n="topic1.hero_desc">
           2023년부터 2026년까지 매년 공원 보유 행정동의 봄철 생활인구 증가율이 일관되게 높았습니다.
         </p>
 
         <table class="clean-table">
           <thead>
-            <tr><th>기간</th><th class="num">공원</th><th class="num">미보유</th><th class="num">격차</th></tr>
+            <tr><th data-i18n="table.period">기간</th><th class="num" data-i18n="table.park">공원</th><th class="num" data-i18n="table.none">미보유</th><th class="num" data-i18n="table.diff">격차</th></tr>
           </thead>
           <tbody>
             {t1_table_rows}
@@ -487,36 +570,36 @@ class DashboardBuilder:
         </table>
       </div>
 
-      <div class="panel chart-panel">
+      <div class="panel chart-panel" id="topic1-dist-panel">
         {dist_chart.to_div(include_js=False)}
       </div>
     </div>
 
-    <div class="panel chart-panel">
+    <div class="panel chart-panel" id="topic1-yearly-panel">
       {yearly_chart.to_div(include_js=False)}
     </div>
   </section>
 
   <section id="topic2" class="tab-pane">
-    <div class="panel chart-panel">
+    <div class="panel chart-panel" id="topic2-bar-panel">
       {age_bar_chart.to_div(include_js=False)}
     </div>
 
     <div class="split-right">
-      <div class="panel chart-panel">
+      <div class="panel chart-panel" id="topic2-trend-panel">
         {age_trend_chart.to_div(include_js=False)}
       </div>
 
       <div class="panel">
-        <div class="section-kicker">주제 2 · 세대별 공원 효과 순위</div>
+        <div class="section-kicker" data-i18n="topic2.kicker">주제 2 · 세대별 공원 효과 순위</div>
         <div class="hero-stat">{kids['diff']:+.2f}%p</div>
-        <p class="hero-desc">
+        <p class="hero-desc" data-i18n="topic2.hero_desc">
           주말 낮(10–17시) 기준 유아동 동반 가족과 청년층이 봄철 공원 유입을 주도하며, 전 세대에서 공원 보유 동의 증가율이 앞섰습니다.
         </p>
 
         <table class="clean-table">
           <thead>
-            <tr><th>세대</th><th class="num">공원</th><th class="num">미보유</th><th class="num">격차</th></tr>
+            <tr><th data-i18n="table.age_group">세대</th><th class="num" data-i18n="table.park">공원</th><th class="num" data-i18n="table.none">미보유</th><th class="num" data-i18n="table.diff">격차</th></tr>
           </thead>
           <tbody>
             {t2_table_rows}
@@ -529,7 +612,7 @@ class DashboardBuilder:
 </main>
 
 <footer>
-  <div class="container">
+  <div class="container" data-i18n="footer.text">
     서울시 25개 자치구 424개의 행정동과 127개 주요 공원의 4개년(2023~2026년) 생활인구 분석 데이터 기준입니다.
   </div>
 </footer>
@@ -551,6 +634,8 @@ class DashboardBuilder:
 
   let currentGu = 'ALL';
   let currentColorMode = 'rate';
+  let currentLang = 'ko';
+  let inspectorState = {{ type: 'summary', id: null }};
   let zoomAnimFrameId = null;
   let animToken = 0;
   let elevationState = {{ gu: null, strength: 0, uid: null }};
@@ -559,6 +644,336 @@ class DashboardBuilder:
   let origParkHaloTrace = null;
   let origParkBorderTrace = null;
   let origParkTrace = null;
+  let origDistCustomdata = null;
+
+  const DONG_KO_TO_EN = Object.fromEntries(Object.values(DETAIL_DATA.dongs || {{}}).map(d => [d.name, d.name_en]));
+  const PARK_BY_NAME = Object.fromEntries((DETAIL_DATA.parks || []).map(p => [p.name, p]));
+  const DAY_TYPE_KEYS = ['주말·공휴일', '평일', '전체'];
+  const AGE_ORDER_KEYS = ['유아동 (0~9세)', '청소년 (10~19세)', '청년층 (20~39세)', '중장년 (40~59세)', '고령층 (60세 이상)', '전체 인구'];
+  const AGE_TREND_KEYS = ['유아동 (0~9세)', '청년층 (20~39세)', '고령층 (60세 이상)'];
+
+  const I18N = {{
+    ko: {{
+      'page.title': '서울시 도시공원이 생활인구에 미치는 영향',
+      'header.title': '서울시 도시공원이 주간 생활인구에 미치는 영향',
+      'header.desc': '서울 424개 행정동(공원 보유 102개 · 미보유 322개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.',
+      'nav.overview': '서울 한눈에 보기',
+      'nav.topic1': '계절별 변동 분석',
+      'nav.topic2': '세대별 반응도',
+      'overview.kicker': '핵심 발견 · 주말 낮(10–17시)',
+      'overview.hero_desc': '겨울(1월) 대비 봄(5월) 생활인구 증가율에서 공원 보유 동({t1_wknd["mean_park"]:+.2f}%)이 미보유 동({t1_wknd["mean_none"]:+.2f}%)보다 유의미하게 앞섰습니다.',
+      'overview.stat_dongs_label': '분석 행정동',
+      'overview.stat_dongs_val': '424개 동 (25개 자치구)',
+      'overview.stat_parks_label': '표시 공원 수',
+      'overview.stat_parks_val': '127개 주요 공원',
+      'overview.stat_hours_label': '분석 시간대',
+      'overview.stat_hours_val': '주말·공휴일 낮 10–17시',
+      'overview.stat_age_label': '최대 수혜 세대',
+      'overview.stat_age_val': '유아동 0–9세 ({kids["diff"]:+.2f}%p)',
+      'overview.top5_title': '봄철 증가율 상위 공원 보유 동 TOP 5',
+      'table.dong': '행정동',
+      'table.jan_may': '1월 → 5월',
+      'table.rate': '증가율',
+      'table.period': '기간',
+      'table.park': '공원',
+      'table.none': '미보유',
+      'table.diff': '격차',
+      'table.age_group': '세대',
+      'map.gu_filter': '자치구 필터',
+      'map.all_gus': '서울 전체 (424개 동)',
+      'map.reset': '전체 보기',
+      'map.mode_rate': '봄철 증가율 (%)',
+      'map.mode_park': '공원 보유 여부',
+      'topic1.kicker': '주제 1 · 연도별 추이 비교',
+      'topic1.hero_stat': '4 / 4개년',
+      'topic1.hero_desc': '2023년부터 2026년까지 매년 공원 보유 행정동의 봄철 생활인구 증가율이 일관되게 높았습니다.',
+      'topic2.kicker': '주제 2 · 세대별 공원 효과 순위',
+      'topic2.hero_desc': '주말 낮(10–17시) 기준 유아동 동반 가족과 청년층이 봄철 공원 유입을 주도하며, 전 세대에서 공원 보유 동의 증가율이 앞섰습니다.',
+      'footer.text': '서울시 25개 자치구 424개의 행정동과 127개 주요 공원의 4개년(2023~2026년) 생활인구 분석 데이터 기준입니다.',
+      dayTypes: {{ '주말·공휴일': '주말·공휴일', '평일': '평일', '전체': '전체' }},
+      ageShort: {{ '유아동': '유아동', '청소년': '청소년', '청년층': '청년층', '중장년': '중장년', '고령층': '고령층' }},
+      ageFull: {{
+        '유아동 (0~9세)': '유아동 (0~9세)',
+        '청소년 (10~19세)': '청소년 (10~19세)',
+        '청년층 (20~39세)': '청년층 (20~39세)',
+        '중장년 (40~59세)': '중장년 (40~59세)',
+        '고령층 (60세 이상)': '고령층 (60세 이상)',
+        '전체 인구': '전체 인구',
+      }},
+    }},
+    en: {{
+      'page.title': 'Impact of Seoul Urban Parks on Daytime Living Population',
+      'header.title': 'Impact of Seoul Urban Parks on Daytime Living Population',
+      'header.desc': 'Analyzing four years of data across 424 Seoul administrative dongs (102 with parks, 322 without) and 127 major parks to examine spring population inflow gaps and age-group responsiveness.',
+      'nav.overview': 'Seoul Overview',
+      'nav.topic1': 'Seasonal Analysis',
+      'nav.topic2': 'Age Group Response',
+      'overview.kicker': 'Key Finding · Weekend Daytime (10:00–17:00)',
+      'overview.hero_desc': 'Park dongs ({t1_wknd["mean_park"]:+.2f}%) significantly outperformed non-park dongs ({t1_wknd["mean_none"]:+.2f}%) in Jan → May population growth.',
+      'overview.stat_dongs_label': 'Analyzed Dongs',
+      'overview.stat_dongs_val': '424 Dongs (25 Districts)',
+      'overview.stat_parks_label': 'Major Parks',
+      'overview.stat_parks_val': '127 Major Parks',
+      'overview.stat_hours_label': 'Analysis Window',
+      'overview.stat_hours_val': 'Weekends/Holidays 10–17h',
+      'overview.stat_age_label': 'Top Beneficiary',
+      'overview.stat_age_val': 'Children 0–9 ({kids["diff"]:+.2f}%p)',
+      'overview.top5_title': 'Top 5 Park Dongs by Spring Growth',
+      'table.dong': 'Dong',
+      'table.jan_may': 'Jan → May',
+      'table.rate': 'Growth',
+      'table.period': 'Period',
+      'table.park': 'With Park',
+      'table.none': 'No Park',
+      'table.diff': 'Gap',
+      'table.age_group': 'Age Group',
+      'map.gu_filter': 'District Filter',
+      'map.all_gus': 'All Seoul (424 Dongs)',
+      'map.reset': 'Reset View',
+      'map.mode_rate': 'Spring Growth (%)',
+      'map.mode_park': 'Park Presence',
+      'topic1.kicker': 'Topic 1 · Year-over-Year Trend',
+      'topic1.hero_stat': '4 / 4 Years',
+      'topic1.hero_desc': 'Every year from 2023 through 2026, dongs with parks consistently recorded higher spring living population growth.',
+      'topic2.kicker': 'Topic 2 · Park Effect by Age Group',
+      'topic2.hero_desc': 'During weekend daytime hours (10:00–17:00), families with young children and young adults led spring park inflows, with park dongs outperforming across every age group.',
+      'footer.text': 'Based on four-year (2023–2026) living population analytics covering 424 administrative dongs across 25 Seoul autonomous districts and 127 major urban parks.',
+      dayTypes: {{ '주말·공휴일': 'Weekends & Holidays', '평일': 'Weekdays', '전체': 'All Days' }},
+      ageShort: {{ '유아동': 'Children', '청소년': 'Teens', '청년층': 'Young Adults', '중장년': 'Mid-Age', '고령층': 'Seniors' }},
+      ageFull: {{
+        '유아동 (0~9세)': 'Children (0–9)',
+        '청소년 (10~19세)': 'Teens (10–19)',
+        '청년층 (20~39세)': 'Young Adults (20–39)',
+        '중장년 (40~59세)': 'Mid-Age (40–59)',
+        '고령층 (60세 이상)': 'Seniors (60+)',
+        '전체 인구': 'All Ages',
+      }},
+    }},
+  }};
+
+  function tr(key) {{
+    return (I18N[currentLang] && I18N[currentLang][key]) || I18N.ko[key] || key;
+  }}
+
+  function guLabel(guKo) {{
+    if (currentLang === 'en' && DETAIL_DATA.gus && DETAIL_DATA.gus[guKo] && DETAIL_DATA.gus[guKo].name_en) {{
+      return DETAIL_DATA.gus[guKo].name_en;
+    }}
+    return guKo;
+  }}
+
+  function dongFullLabel(cd) {{
+    const d = DETAIL_DATA.dongs && DETAIL_DATA.dongs[cd];
+    if (!d) return cd;
+    return currentLang === 'en' ? (d.name_en || d.name) : d.name;
+  }}
+
+  function dongShortLabel(cd) {{
+    const d = DETAIL_DATA.dongs && DETAIL_DATA.dongs[cd];
+    if (!d) return cd;
+    if (currentLang === 'en') return d.short_en || (d.name_en ? d.name_en.split(', ')[0] : d.name);
+    return d.name.split(' ').slice(1).join(' ') || d.name;
+  }}
+
+  function parkNameLabel(p) {{
+    return currentLang === 'en' ? (p.name_en || p.name) : p.name;
+  }}
+
+  function parkAddrLabel(p) {{
+    return currentLang === 'en' ? (p.addr_en || p.addr) : p.addr;
+  }}
+
+  function parkGuLabel(p) {{
+    return currentLang === 'en' ? (p.gu_en || guLabel(p.gu)) : p.gu;
+  }}
+
+  function dayTypeLabel(dt) {{
+    return (I18N[currentLang] && I18N[currentLang].dayTypes[dt]) || dt;
+  }}
+
+  function ageShortLabel(g) {{
+    return (I18N[currentLang] && I18N[currentLang].ageShort[g]) || g;
+  }}
+
+  function ageFullLabel(g) {{
+    return (I18N[currentLang] && I18N[currentLang].ageFull[g]) || g;
+  }}
+
+  function makeChartTitle(title, subtitle) {{
+    const main = `<span style='color:#111827;font-size:16px;font-weight:600;letter-spacing:-0.02em'>${{title}}</span>`;
+    return subtitle ? `${{main}}<br><span style='font-size:12.5px;color:#6B7280;font-weight:400'>${{subtitle}}</span>` : main;
+  }}
+
+  function updateGuSelectOptions() {{
+    const selEl = document.getElementById('gu-select');
+    if (!selEl) return;
+    const allOpt = selEl.querySelector('option[value="ALL"]');
+    const guOpts = Array.from(selEl.querySelectorAll('option:not([value="ALL"])'));
+    if (allOpt) allOpt.textContent = tr('map.all_gus');
+    guOpts.forEach(opt => {{
+      opt.textContent = guLabel(opt.value);
+    }});
+    const locale = currentLang === 'en' ? 'en' : 'ko';
+    guOpts.sort((a, b) => a.textContent.localeCompare(b.textContent, locale));
+    guOpts.forEach(opt => selEl.appendChild(opt));
+    selEl.value = currentGu;
+  }}
+
+  function updateStaticChartsLanguage() {{
+    if (!window.Plotly) return;
+    const isEn = currentLang === 'en';
+    const parkYes = isEn ? 'With Park' : '공원 보유';
+    const parkNo = isEn ? 'No Park' : '공원 미보유';
+
+    const distDiv = document.querySelector('#topic1-dist-panel .plotly-graph-div');
+    if (distDiv && distDiv.data) {{
+      if (!origDistCustomdata) {{
+        origDistCustomdata = distDiv.data.map(t => (t.customdata || []).map(row => [...row]));
+      }}
+      const cdUpdate = origDistCustomdata.map(rows =>
+        rows.map(row => [isEn ? (DONG_KO_TO_EN[row[0]] || row[0]) : row[0], row[1], row[2]])
+      );
+      const htPark = isEn
+        ? `<b>%{{customdata[0]}}</b><br>Jan %{{customdata[1]:,.0f}} → May %{{customdata[2]:,.0f}}<br>Growth %{{y:+.2f}}%<extra>${{parkYes}}</extra>`
+        : `<b>%{{customdata[0]}}</b><br>1월 %{{customdata[1]:,.0f}}명 → 5월 %{{customdata[2]:,.0f}}명<br>증가율 %{{y:+.2f}}%<extra>${{parkYes}}</extra>`;
+      const htNone = isEn
+        ? `<b>%{{customdata[0]}}</b><br>Jan %{{customdata[1]:,.0f}} → May %{{customdata[2]:,.0f}}<br>Growth %{{y:+.2f}}%<extra>${{parkNo}}</extra>`
+        : `<b>%{{customdata[0]}}</b><br>1월 %{{customdata[1]:,.0f}}명 → 5월 %{{customdata[2]:,.0f}}명<br>증가율 %{{y:+.2f}}%<extra>${{parkNo}}</extra>`;
+      Plotly.update(
+        distDiv,
+        {{ name: [parkYes, parkNo], customdata: cdUpdate, hovertemplate: [htPark, htNone] }},
+        {{
+          'title.text': isEn
+            ? makeChartTitle('Seasonal Growth Distribution by Park Presence', '2023–2026 daytime (10:00–17:00) average · Each dot = 1 administrative dong')
+            : makeChartTitle('공원 보유 여부에 따른 계절 증가율 분포', '2023~2026년 낮(10~17시) 평균 · 점 하나 = 행정동 하나'),
+          'yaxis.title.text': isEn ? 'Jan → May Growth (%)' : '1월 → 5월 증가율 (%)',
+          'xaxis.tickmode': 'array',
+          'xaxis.tickvals': DAY_TYPE_KEYS,
+          'xaxis.ticktext': DAY_TYPE_KEYS.map(dayTypeLabel),
+        }}
+      );
+    }}
+
+    const yearlyDiv = document.querySelector('#topic1-yearly-panel .plotly-graph-div');
+    if (yearlyDiv && yearlyDiv.data) {{
+      const names = [];
+      const hts = [];
+      yearlyDiv.data.forEach((_, idx) => {{
+        const hp = idx % 2 === 0;
+        const cat = dayTypeLabel(DAY_TYPE_KEYS[Math.floor(idx / 2)] || '');
+        const lbl = hp ? parkYes : parkNo;
+        names.push(lbl);
+        hts.push(isEn ? `%{{x}} · ${{lbl}} %{{y:+.2f}}%<extra>${{cat}}</extra>` : `%{{x}}년 · ${{lbl}} %{{y:+.2f}}%<extra>${{cat}}</extra>`);
+      }});
+      const relayoutObj = {{
+        'title.text': isEn
+          ? makeChartTitle('Yearly Jan → May Population Growth Trend', 'Verifying consistent outperformance of park dongs across 4 consecutive years')
+          : makeChartTitle('연도별 1월 → 5월 생활인구 증가율 추이', '4개년 연속 공원 보유 동의 증가율이 우세한지 검증'),
+        'yaxis.title.text': isEn ? 'Avg Growth (%)' : '평균 증가율 (%)',
+      }};
+      DAY_TYPE_KEYS.forEach((dt, idx) => {{
+        relayoutObj[`annotations[${{idx}}].text`] = dayTypeLabel(dt);
+      }});
+      Plotly.update(yearlyDiv, {{ name: names, hovertemplate: hts }}, relayoutObj);
+    }}
+
+    const ageBarDiv = document.querySelector('#topic2-bar-panel .plotly-graph-div');
+    if (ageBarDiv && ageBarDiv.data) {{
+      const localizedAges = AGE_ORDER_KEYS.map(ageFullLabel);
+      const htBarPark = isEn
+        ? `<b>%{{customdata}}</b><br>${{parkYes}} Avg Growth: %{{y:+.2f}}%<extra></extra>`
+        : `<b>%{{customdata}}</b><br>${{parkYes}} 평균 증가율: %{{y:+.2f}}%<extra></extra>`;
+      const htBarNone = isEn
+        ? `<b>%{{customdata}}</b><br>${{parkNo}} Avg Growth: %{{y:+.2f}}%<extra></extra>`
+        : `<b>%{{customdata}}</b><br>${{parkNo}} 평균 증가율: %{{y:+.2f}}%<extra></extra>`;
+      Plotly.update(
+        ageBarDiv,
+        {{
+          name: [parkYes, parkNo],
+          customdata: [localizedAges, localizedAges],
+          hovertemplate: [htBarPark, htBarNone],
+        }},
+        {{
+          'title.text': isEn
+            ? makeChartTitle('Jan → May Living Population Growth by Age Group (Weekend Daytime 10:00–17:00)', '4-year avg (2023–2026) · Park attraction effect is strongest among Children ({kids["diff"]:+.2f}%p) and Young Adults ({young_adults["diff"]:+.2f}%p)')
+            : makeChartTitle('세대별 1월 → 5월 생활인구 증가율 비교 (주말·공휴일 낮 10~17시 기준)', '4개년(2023~2026) 평균 · 유아동({kids["diff"]:+.2f}%p)과 청년층({young_adults["diff"]:+.2f}%p)에서 공원 유인 효과가 가장 크게 나타남'),
+          'yaxis.title.text': isEn ? 'Avg Growth vs. Jan (%)' : '1월 대비 5월 평균 증가율 (%)',
+          'xaxis.tickmode': 'array',
+          'xaxis.tickvals': AGE_ORDER_KEYS,
+          'xaxis.ticktext': localizedAges,
+        }}
+      );
+    }}
+
+    const ageTrendDiv = document.querySelector('#topic2-trend-panel .plotly-graph-div');
+    if (ageTrendDiv && ageTrendDiv.data) {{
+      const names = [];
+      const hts = [];
+      ageTrendDiv.data.forEach((_, idx) => {{
+        const hp = idx % 2 === 0;
+        const cat = ageFullLabel(AGE_TREND_KEYS[Math.floor(idx / 2)] || '');
+        const lbl = hp ? parkYes : parkNo;
+        names.push(lbl);
+        hts.push(isEn ? `%{{x}} · ${{lbl}} %{{y:+.2f}}%<extra>${{cat}}</extra>` : `%{{x}}년 · ${{lbl}} %{{y:+.2f}}%<extra>${{cat}}</extra>`);
+      }});
+      const relayoutObj = {{
+        'title.text': isEn
+          ? makeChartTitle('4-Year Growth Trend by Key Age Group (Weekend Daytime 10:00–17:00)', 'Demonstrating consistent park-dong outperformance every year')
+          : makeChartTitle('주요 세대별 4개년(2023~2026) 증가율 추이 (주말 낮 10~17시)', '매년 공원 보유 행정동이 우세함을 입증'),
+        'yaxis.title.text': isEn ? 'Avg Growth (%)' : '평균 증가율 (%)',
+      }};
+      AGE_TREND_KEYS.forEach((ag, idx) => {{
+        relayoutObj[`annotations[${{idx}}].text`] = ageFullLabel(ag);
+      }});
+      Plotly.update(ageTrendDiv, {{ name: names, hovertemplate: hts }}, relayoutObj);
+    }}
+  }}
+
+  function setLanguage(lang) {{
+    if (lang !== 'ko' && lang !== 'en') return;
+    currentLang = lang;
+    document.documentElement.lang = lang;
+    document.title = tr('page.title');
+
+    document.querySelectorAll('.lang-btn').forEach(btn => {{
+      btn.classList.toggle('active', btn.dataset.lang === lang);
+    }});
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {{
+      el.textContent = tr(el.dataset.i18n);
+    }});
+
+    document.querySelectorAll('[data-dong-cd]').forEach(el => {{
+      const cd = el.dataset.dongCd;
+      const d = DETAIL_DATA.dongs && DETAIL_DATA.dongs[cd];
+      if (lang === 'en' && d) {{
+        el.innerHTML = `${{dongShortLabel(cd)}}<span class="top5-sub">${{guLabel(d.gu)}}</span>`;
+      }} else {{
+        el.textContent = dongFullLabel(cd);
+      }}
+    }});
+
+    document.querySelectorAll('[data-period="4개년"]').forEach(el => {{
+      el.textContent = lang === 'en' ? '4-Yr Avg' : '4개년';
+    }});
+
+    document.querySelectorAll('[data-age-key]').forEach(el => {{
+      el.textContent = ageFullLabel(el.dataset.ageKey);
+    }});
+
+    updateGuSelectOptions();
+    updateMapView({{ animateZoom: false, keepViewport: true }});
+    updateStaticChartsLanguage();
+
+    if (inspectorState.type === 'gu' && inspectorState.id) {{
+      showGuDetail(inspectorState.id);
+    }} else if (inspectorState.type === 'dong' && inspectorState.id) {{
+      showDongDetail(inspectorState.id);
+    }} else if (inspectorState.type === 'park' && inspectorState.id) {{
+      const p = PARK_BY_NAME[inspectorState.id];
+      if (p) showParkDetail(p);
+    }}
+  }}
 
   function mercatorY(latDeg) {{
     return Math.log(Math.tan(Math.PI / 4 + (latDeg * Math.PI) / 360));
@@ -908,10 +1323,26 @@ class DashboardBuilder:
   }}
 
   function buildDongTrace(indices, features, opts) {{
+    const isEn = currentLang === 'en';
     const locs = indices.map(i => origDongTrace.locations[i]);
-    const custom = indices.map(i => origDongTrace.customdata[i]);
+    const custom = indices.map(i => {{
+      const cd = origDongTrace.locations[i];
+      const d = DETAIL_DATA.dongs[cd];
+      const orig = origDongTrace.customdata[i];
+      if (!d) return orig;
+      const nm = isEn ? (d.name_en || d.name) : d.name;
+      const status = isEn ? (d.has_park ? 'With Park' : 'No Park') : (d.has_park ? '공원 보유' : '공원 미보유');
+      return [nm, status, orig[2], orig[3], orig[4]];
+    }});
     const rates = indices.map(i => origDongTrace.z[i]);
     const parkFlags = locs.map(cd => (DETAIL_DATA.dongs[cd] && DETAIL_DATA.dongs[cd].has_park ? 1 : 0));
+    const colorbar = origDongTrace.colorbar ? {{
+      ...origDongTrace.colorbar,
+      title: {{
+        ...(origDongTrace.colorbar.title || {{}}),
+        text: isEn ? 'Growth (%)' : '증가율(%)',
+      }},
+    }} : origDongTrace.colorbar;
     return {{
       type: 'choropleth',
       locationmode: 'geojson-id',
@@ -924,14 +1355,16 @@ class DashboardBuilder:
       zmax: currentColorMode === 'rate' ? 15 : 1,
       colorscale: currentColorMode === 'rate' ? RATE_SCALE : PARK_SCALE,
       showscale: opts.showscale,
-      colorbar: origDongTrace.colorbar,
+      colorbar,
       marker: {{
         opacity: opts.opacity,
         line: {{ width: opts.lineWidth, color: opts.lineColor }},
       }},
       customdata: custom,
-      hovertemplate: origDongTrace.hovertemplate,
-      name: opts.name || '행정동',
+      hovertemplate: isEn
+        ? '<b>%{{customdata[0]}}</b> · %{{customdata[1]}}<br>Jan %{{customdata[2]:,.0f}} → May %{{customdata[3]:,.0f}} · <b>%{{customdata[4]:+.2f}}%</b><extra></extra>'
+        : '<b>%{{customdata[0]}}</b> · %{{customdata[1]}}<br>1월 %{{customdata[2]:,.0f}}명 → 5월 %{{customdata[3]:,.0f}}명 · <b>%{{customdata[4]:+.2f}}%</b><extra></extra>',
+      name: opts.name || (isEn ? 'Dong' : '행정동'),
       showlegend: false,
     }};
   }}
@@ -954,6 +1387,8 @@ class DashboardBuilder:
   }}
 
   function buildParkTrace(indices, opts) {{
+    const isEn = currentLang === 'en';
+    const parkExtra = isEn ? 'Major Park' : '주요 공원';
     return {{
       type: 'scattergeo',
       uid: opts.uid,
@@ -961,14 +1396,28 @@ class DashboardBuilder:
       mode: 'markers',
       lat: indices.map(i => origParkTrace.lat[i]),
       lon: indices.map(i => origParkTrace.lon[i]),
-      customdata: indices.map(i => origParkTrace.customdata[i]),
+      customdata: indices.map(i => {{
+        const orig = origParkTrace.customdata[i] || [];
+        const canonicalName = orig[4] || orig[0];
+        const p = PARK_BY_NAME[canonicalName];
+        if (!p) return orig;
+        return [
+          parkNameLabel(p),
+          parkGuLabel(p),
+          orig[2],
+          parkAddrLabel(p),
+          p.name,
+        ];
+      }}),
       marker: {{
         size: indices.map(i => origParkTrace.marker.size[i]),
         color: '#111827',
         opacity: opts.opacity,
         line: {{ color: '#FFFFFF', width: 0.9 }},
       }},
-      hovertemplate: origParkTrace.hovertemplate,
+      hovertemplate: isEn
+        ? `<b>%{{customdata[0]}}</b> (%{{customdata[1]}}) · Area %{{customdata[2]:,.1f}} ha<extra>${{parkExtra}}</extra>`
+        : `<b>%{{customdata[0]}}</b> (%{{customdata[1]}}) · 면적 %{{customdata[2]:,.1f}} ha<extra>${{parkExtra}}</extra>`,
       legendgroup: 'parks',
       name: opts.name,
       showlegend: opts.showlegend,
@@ -990,6 +1439,7 @@ class DashboardBuilder:
   }}
 
   function resetToSummary() {{
+    inspectorState = {{ type: 'summary', id: null }};
     document.getElementById('overview-detail').style.display = 'none';
     document.getElementById('overview-summary').style.display = 'block';
     document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
@@ -1042,13 +1492,21 @@ class DashboardBuilder:
       else dimFeatures.push(ft);
     }});
 
+    const isEn = currentLang === 'en';
+    const dongTraceName = isEn ? 'Dong' : '행정동';
+    const dimDongTraceName = isEn ? 'Other Districts' : '타 자치구 행정동';
+    const guBorderName = isEn ? 'District Boundary' : '자치구 경계';
+    const parkBorderName = isEn ? 'Park Dong Boundary' : '공원 보유 동 경계';
+    const parkName = isEn ? 'Major Parks' : '주요 공원';
+    const dimParkName = isEn ? 'Other District Parks' : '타 자치구 공원';
+
     const activeDongTrace = buildDongTrace(activeDongIdx, activeFeatures, {{
       uid: 'dong-' + currentGu + '-' + currentColorMode,
       opacity: 1,
       showscale: currentColorMode === 'rate',
       lineWidth: isAll ? 0.6 : 0.9,
       lineColor: isAll ? '#E5E7EB' : '#FFFFFF',
-      name: '행정동',
+      name: dongTraceName,
     }});
 
     // 2. 공원 마커 분할 (선택 구 vs 타 자치구 25% 투명도)
@@ -1088,7 +1546,7 @@ class DashboardBuilder:
             showscale: currentColorMode === 'rate',
             lineWidth: 0.6,
             lineColor: '#E5E7EB',
-            name: '행정동',
+            name: dongTraceName,
           }}),
           buildDongTrace(exitIdx, exitFeatures, {{
             uid: shadowUid,
@@ -1096,7 +1554,7 @@ class DashboardBuilder:
             showscale: false,
             lineWidth: 0.6,
             lineColor: '#E5E7EB',
-            name: '행정동',
+            name: dongTraceName,
           }})
         );
         shadowAnim = {{ uid: shadowUid, gu: prevShadow.gu, from: prevShadow.strength, to: 0 }};
@@ -1107,7 +1565,7 @@ class DashboardBuilder:
       traces.push(
         buildLineTrace(
           {{ lon: origBorderTrace.lon, lat: origBorderTrace.lat }},
-          {{ uid: 'border-ALL', color: '#6B7280', width: 1.1, dash: 'dot', legendgroup: 'gu-border', name: '자치구 경계', showlegend: true }}
+          {{ uid: 'border-ALL', color: '#6B7280', width: 1.1, dash: 'dot', legendgroup: 'gu-border', name: guBorderName, showlegend: true }}
         ),
         buildLineTrace(
           {{ lon: origParkHaloTrace.lon, lat: origParkHaloTrace.lat }},
@@ -1115,12 +1573,12 @@ class DashboardBuilder:
         ),
         buildLineTrace(
           {{ lon: origParkBorderTrace.lon, lat: origParkBorderTrace.lat }},
-          {{ uid: 'pk-border-ALL', color: '#0F766E', width: 1.9, legendgroup: 'park-border', name: '공원 보유 동 경계', showlegend: true }}
+          {{ uid: 'pk-border-ALL', color: '#0F766E', width: 1.9, legendgroup: 'park-border', name: parkBorderName, showlegend: true }}
         ),
         buildParkTrace(activeParkIdx, {{
           uid: 'park-ALL',
           opacity: PARK_INSIDE_OPACITY,
-          name: '주요 공원',
+          name: parkName,
           showlegend: true,
         }})
       );
@@ -1141,7 +1599,7 @@ class DashboardBuilder:
           showscale: false,
           lineWidth: 0.5,
           lineColor: '#E5E7EB',
-          name: '타 자치구 행정동',
+          name: dimDongTraceName,
         }}),
         activeDongTrace,
         buildLineTrace(dimGuBounds, {{
@@ -1169,7 +1627,7 @@ class DashboardBuilder:
         buildParkTrace(dimParkIdx, {{
           uid: 'park-dim-' + currentGu,
           opacity: PARK_OUTSIDE_OPACITY,
-          name: '타 자치구 공원',
+          name: dimParkName,
           showlegend: false,
         }}),
         buildLineTrace(activeGuBounds, {{
@@ -1178,7 +1636,7 @@ class DashboardBuilder:
           width: 1.5,
           dash: 'dot',
           legendgroup: 'gu-border',
-          name: '자치구 경계',
+          name: guBorderName,
           showlegend: true,
         }}),
         buildLineTrace(activePkBounds, {{
@@ -1193,13 +1651,13 @@ class DashboardBuilder:
           color: '#0F766E',
           width: 2.5,
           legendgroup: 'park-border',
-          name: '공원 보유 동 경계',
+          name: parkBorderName,
           showlegend: true,
         }}),
         buildParkTrace(activeParkIdx, {{
           uid: 'park-' + currentGu,
           opacity: PARK_INSIDE_OPACITY,
-          name: '주요 공원',
+          name: parkName,
           showlegend: true,
         }})
       );
@@ -1208,6 +1666,13 @@ class DashboardBuilder:
     const latRange = computeFullWidthLatRange(mapPlot);
     const box = getGeoBoxSize(mapPlot);
     const initialLayoutView = startView || (box ? computeGeoViewForBox(currentGu, box.w, box.h) : null);
+    const mapTitle = isEn
+      ? (isAll ? 'Spring Living Population Growth & Major Parks Across 424 Seoul Dongs' : `Spring Living Population Growth in ${{guLabel(currentGu)}} (${{activeDongIdx.length}} Dongs)`)
+      : (isAll ? '서울시 424개 행정동 봄철 생활인구 증가율 및 주요 공원 분포' : `${{currentGu}} 행정동별 봄철 생활인구 증가율 (${{activeDongIdx.length}}개 동)`);
+    const mapSubtitle = isEn
+      ? (isAll ? 'Teal solid border = Dong with park · Dotted line = District boundary · Click a district or use filter above to zoom' : 'Teal solid border = Dong with park · Click another district to switch filter')
+      : (isAll ? '짙은 청록색 실선 테두리 = 공원 보유 동 · 점선 = 자치구 경계 · 자치구 클릭 또는 상단 필터로 구별 확대' : '짙은 청록색 실선 테두리 = 공원 보유 동 · 타 자치구 클릭 시 해당 구로 필터 전환');
+
     const layoutCopy = {{
       template: mapPlot.layout.template,
       paper_bgcolor: '#FFFFFF',
@@ -1235,7 +1700,7 @@ class DashboardBuilder:
         bgcolor: 'rgba(0,0,0,0)',
       }},
       title: {{
-        text: `<span style='color:#111827;font-size:16px;font-weight:600;letter-spacing:-0.02em'>${{isAll ? '서울시 424개 행정동 봄철 생활인구 증가율 및 주요 공원 분포' : currentGu + ' 행정동별 봄철 생활인구 증가율 (' + activeDongIdx.length + '개 동)'}}</span><br><span style='font-size:12.5px;color:#6B7280;font-weight:400'>${{isAll ? '짙은 청록색 실선 테두리 = 공원 보유 동 · 점선 = 자치구 경계 · 자치구 클릭 또는 상단 필터로 구별 확대' : '짙은 청록색 실선 테두리 = 공원 보유 동 · 타 자치구 클릭 시 해당 구로 필터 전환'}}</span>`,
+        text: makeChartTitle(mapTitle, mapSubtitle),
         x: 0.01,
         xanchor: 'left',
       }},
@@ -1293,31 +1758,43 @@ class DashboardBuilder:
   function showGuDetail(guName) {{
     const g = DETAIL_DATA.gus[guName];
     if (!g) return;
-    const dongRows = g.dongs.map(d =>
-      `<tr class='clickable-row' onclick="focusDong('${{d.cd}}')">` +
-      `<td>${{d.name}}</td>` +
-      `<td class='num'>${{d.has_park ? '<span class="accent">보유</span>' : '미보유'}}</td>` +
-      `<td class='num ${{d.rate >= 0 ? "accent" : ""}}'>${{d.rate > 0 ? "+" : ""}}${{d.rate.toFixed(2)}}%</td></tr>`
-    ).join('');
+    inspectorState = {{ type: 'gu', id: guName }};
+    const isEn = currentLang === 'en';
+    const guDisp = guLabel(guName);
+
+    const dongRows = g.dongs.map(d => {{
+      const dName = isEn ? (d.name_en || d.name) : d.name;
+      const parkCol = d.has_park
+        ? `<span class="accent">${{isEn ? 'Yes' : '보유'}}</span>`
+        : (isEn ? 'No' : '미보유');
+      return `<tr class='clickable-row' onclick="focusDong('${{d.cd}}')">` +
+        `<td>${{dName}}</td>` +
+        `<td class='num'>${{parkCol}}</td>` +
+        `<td class='num ${{d.rate >= 0 ? "accent" : ""}}'>${{d.rate > 0 ? "+" : ""}}${{d.rate.toFixed(2)}}%</td></tr>`;
+    }}).join('');
 
     const parksHtml = g.parks.length
-      ? g.parks.map(p => `<div class="park-item"><div class="park-item-title">${{p.name}} <span style="font-weight:400;color:var(--text-muted)">(${{p.dong_nm.split(' ').slice(1).join(' ')}})</span></div><div class="park-item-meta">면적 ${{p.area_ha.toLocaleString()}} ha · ${{p.addr}}</div></div>`).join('')
-      : '<div style="font-size:12px;color:var(--text-muted);">등록된 주요 도시공원이 없습니다.</div>';
+      ? g.parks.map(p => {{
+          const subDong = dongShortLabel(p.dong_cd);
+          const areaLbl = isEn ? 'Area' : '면적';
+          return `<div class="park-item"><div class="park-item-title">${{parkNameLabel(p)}} <span style="font-weight:400;color:var(--text-muted)">(${{subDong}})</span></div><div class="park-item-meta">${{areaLbl}} ${{p.area_ha.toLocaleString()}} ha · ${{parkAddrLabel(p)}}</div></div>`;
+        }}).join('')
+      : `<div style="font-size:12px;color:var(--text-muted);">${{isEn ? 'No major urban parks registered.' : '등록된 주요 도시공원이 없습니다.'}}</div>`;
 
-    const backBtn = `<button class="back-btn" onclick="selectGu('ALL')">← 서울 전체로 돌아가기</button>`;
+    const backBtn = `<button class="back-btn" onclick="selectGu('ALL')">${{isEn ? '← Back to All Seoul' : '← 서울 전체로 돌아가기'}}</button>`;
     renderInspector(backBtn, `
-      <div class="section-kicker">서울시 자치구 · 행정동 목록</div>
-      <div class="detail-header"><h2 class="detail-title">${{g.name}}</h2><span class="status-tag has-park">공원 보유 ${{g.n_park}}/${{g.n_dongs}}동</span></div>
+      <div class="section-kicker">${{isEn ? 'Seoul District · Administrative Dongs' : '서울시 자치구 · 행정동 목록'}}</div>
+      <div class="detail-header"><h2 class="detail-title">${{guDisp}}</h2><span class="status-tag has-park">${{isEn ? `Parks in ${{g.n_park}}/${{g.n_dongs}} Dongs` : `공원 보유 ${{g.n_park}}/${{g.n_dongs}}동`}}</span></div>
       <table class="clean-table" style="margin-top:10px;"><tbody>
-        <tr><td>구 전체 평균 증가율</td><td class="num accent">${{g.mean_rate>0?'+':''}}${{g.mean_rate.toFixed(2)}}%</td></tr>
-        <tr><td>공원 보유 동 평균</td><td class="num">${{g.park_rate !== null ? (g.park_rate>0?'+':'')+g.park_rate.toFixed(2)+'%' : '-'}}</td></tr>
-        <tr><td>공원 미보유 동 평균</td><td class="num">${{g.none_rate !== null ? (g.none_rate>0?'+':'')+g.none_rate.toFixed(2)+'%' : '-'}}</td></tr>
+        <tr><td>${{isEn ? 'District Avg Growth' : '구 전체 평균 증가율'}}</td><td class="num accent">${{g.mean_rate>0?'+':''}}${{g.mean_rate.toFixed(2)}}%</td></tr>
+        <tr><td>${{isEn ? 'With Park Avg' : '공원 보유 동 평균'}}</td><td class="num">${{g.park_rate !== null ? (g.park_rate>0?'+':'')+g.park_rate.toFixed(2)+'%' : '-'}}</td></tr>
+        <tr><td>${{isEn ? 'No Park Avg' : '공원 미보유 동 평균'}}</td><td class="num">${{g.none_rate !== null ? (g.none_rate>0?'+':'')+g.none_rate.toFixed(2)+'%' : '-'}}</td></tr>
       </tbody></table>
-      <div class="sub-heading">소속 행정동 전체 (${{g.n_dongs}}개 동 · 클릭 시 상세)</div>
+      <div class="sub-heading">${{isEn ? `All Administrative Dongs (${{g.n_dongs}} · Click for details)` : `소속 행정동 전체 (${{g.n_dongs}}개 동 · 클릭 시 상세)`}}</div>
       <div class="scroll-table-wrap">
-        <table class="clean-table"><thead><tr><th>행정동</th><th class="num">공원</th><th class="num">증가율</th></tr></thead><tbody>${{dongRows}}</tbody></table>
+        <table class="clean-table"><thead><tr><th>${{isEn ? 'Dong' : '행정동'}}</th><th class="num">${{isEn ? 'Park' : '공원'}}</th><th class="num">${{isEn ? 'Growth' : '증가율'}}</th></tr></thead><tbody>${{dongRows}}</tbody></table>
       </div>
-      <div class="sub-heading">구 내 주요 공원 (${{g.parks.length}}개소)</div>
+      <div class="sub-heading">${{isEn ? `Major Parks in District (${{g.parks.length}})` : `구 내 주요 공원 (${{g.parks.length}}개소)`}}</div>
       <div>${{parksHtml}}</div>
     `);
   }}
@@ -1335,15 +1812,20 @@ class DashboardBuilder:
   function showDongDetail(cd) {{
     const d = DETAIL_DATA.dongs[cd];
     if (!d) return;
-    const badge = d.has_park
-      ? '<span class="status-tag has-park">공원 보유</span>'
-      : '<span class="status-tag">공원 미보유</span>';
+    inspectorState = {{ type: 'dong', id: cd }};
+    const isEn = currentLang === 'en';
+    const guDisp = guLabel(d.gu);
+    const dongDisp = isEn ? (d.name_en || d.name) : d.name;
 
-    const dayRows = ['주말·공휴일', '평일', '전체'].map(dt => {{
+    const badge = d.has_park
+      ? `<span class="status-tag has-park">${{isEn ? 'Has Park' : '공원 보유'}}</span>`
+      : `<span class="status-tag">${{isEn ? 'No Park' : '공원 미보유'}}</span>`;
+
+    const dayRows = DAY_TYPE_KEYS.map(dt => {{
       const st = d.day_stats[dt];
       if (!st) return '';
       const cls = st.rate >= 0 ? 'accent' : '';
-      return `<tr><td>${{dt}}</td><td class="num">${{st.jan.toLocaleString()}} → ${{st.may.toLocaleString()}}</td><td class="num ${{cls}}">${{st.rate > 0 ? '+' : ''}}${{st.rate.toFixed(2)}}%</td></tr>`;
+      return `<tr><td>${{dayTypeLabel(dt)}}</td><td class="num">${{st.jan.toLocaleString()}} → ${{st.may.toLocaleString()}}</td><td class="num ${{cls}}">${{st.rate > 0 ? '+' : ''}}${{st.rate.toFixed(2)}}%</td></tr>`;
     }}).join('');
 
     const yearCells = ['2023', '2024', '2025', '2026'].map(yr => {{
@@ -1356,60 +1838,66 @@ class DashboardBuilder:
     const ageRows = d.ages.map(a => {{
       const w = Math.min(100, Math.abs(a.rate) * 5.5);
       const negCls = a.rate < 0 ? 'neg' : '';
-      return `<div class="age-bar-row"><span>${{a.group}}</span><div class="bar-track"><div class="bar-fill ${{negCls}}" style="width:${{w}}%"></div></div><span class="num" style="text-align:right;font-variant-numeric:tabular-nums;color:${{a.rate>=0?'var(--accent)':'var(--text-muted)'}}">${{a.rate>0?'+':''}}${{a.rate.toFixed(1)}}%</span></div>`;
+      return `<div class="age-bar-row"><span>${{ageShortLabel(a.group)}}</span><div class="bar-track"><div class="bar-fill ${{negCls}}" style="width:${{w}}%"></div></div><span class="num" style="text-align:right;font-variant-numeric:tabular-nums;color:${{a.rate>=0?'var(--accent)':'var(--text-muted)'}}">${{a.rate>0?'+':''}}${{a.rate.toFixed(1)}}%</span></div>`;
     }}).join('');
 
     const parksHtml = d.parks.length
-      ? d.parks.map(p => `<div class="park-item"><div class="park-item-title">${{p.name}}</div><div class="park-item-meta">면적 ${{p.area_ha.toLocaleString()}} ha · ${{p.addr}}</div>${{p.fclt ? `<div class="park-item-meta" style="margin-top:4px;color:var(--text-body)">${{p.fclt}}</div>` : ''}}</div>`).join('')
-      : '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">이 행정동 경계 내 등록된 주요 도시공원이 없습니다.</div>';
+      ? d.parks.map(p => `<div class="park-item"><div class="park-item-title">${{parkNameLabel(p)}}</div><div class="park-item-meta">${{isEn ? 'Area' : '면적'}} ${{p.area_ha.toLocaleString()}} ha · ${{parkAddrLabel(p)}}</div>${{p.fclt ? `<div class="park-item-meta" style="margin-top:4px;color:var(--text-body)">${{p.fclt}}</div>` : ''}}</div>`).join('')
+      : `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">${{isEn ? 'No major urban parks registered within this dong boundary.' : '이 행정동 경계 내 등록된 주요 도시공원이 없습니다.'}}</div>`;
 
     let backBtn;
     if (currentGu === 'ALL') {{
-      backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{d.gu}}만 확대</button></div>`;
+      backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">${{isEn ? '← All Seoul Summary' : '← 서울 전체 요약'}}</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{isEn ? `Zoom to ${{guDisp}}` : `${{d.gu}}만 확대`}}</button></div>`;
     }} else if (d.gu === currentGu) {{
-      backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button>`;
+      backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">${{isEn ? `← Back to ${{guLabel(currentGu)}}` : `← ${{currentGu}} 목록으로`}}</button>`;
     }} else {{
-      backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{d.gu}}로 이동</button></div>`;
+      backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">${{isEn ? `← Back to ${{guLabel(currentGu)}}` : `← ${{currentGu}} 목록으로`}}</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{isEn ? `Go to ${{guDisp}}` : `${{d.gu}}로 이동`}}</button></div>`;
     }}
 
     renderInspector(backBtn, `
-      <div class="section-kicker"><span class="gu-link" onclick="selectGu('${{d.gu}}')">${{d.gu}}</span> · 행정동 상세</div>
-      <div class="detail-header"><h2 class="detail-title">${{d.name}}</h2>${{badge}}</div>
-      <div class="sub-heading">1월 → 5월 낮 생활인구 변화 (4개년 평균)</div>
+      <div class="section-kicker"><span class="gu-link" onclick="selectGu('${{d.gu}}')">${{guDisp}}</span> · ${{isEn ? 'Dong Details' : '행정동 상세'}}</div>
+      <div class="detail-header"><h2 class="detail-title">${{dongDisp}}</h2>${{badge}}</div>
+      <div class="sub-heading">${{isEn ? 'Jan → May Daytime Population Change (4-Yr Avg)' : '1월 → 5월 낮 생활인구 변화 (4개년 평균)'}}</div>
       <table class="clean-table">
-        <thead><tr><th>구분</th><th class="num">1월 → 5월</th><th class="num">증가율</th></tr></thead>
+        <thead><tr><th>${{isEn ? 'Category' : '구분'}}</th><th class="num">${{isEn ? 'Jan → May' : '1월 → 5월'}}</th><th class="num">${{isEn ? 'Growth' : '증가율'}}</th></tr></thead>
         <tbody>${{dayRows}}</tbody>
       </table>
-      <div class="sub-heading">주말 낮 연도별 증가율 추이</div>
+      <div class="sub-heading">${{isEn ? 'Weekend Daytime Growth by Year' : '주말 낮 연도별 증가율 추이'}}</div>
       <div class="year-grid">${{yearCells}}</div>
-      <div class="sub-heading">5대 세대별 봄철 증가율 (주말 낮)</div>
+      <div class="sub-heading">${{isEn ? 'Spring Growth by Age Group (Weekend Daytime)' : '5대 세대별 봄철 증가율 (주말 낮)'}}</div>
       <div>${{ageRows}}</div>
-      <div class="sub-heading">소속 주요 공원 정보 (${{d.parks.length}}개소)</div>
+      <div class="sub-heading">${{isEn ? `Major Parks in Dong (${{d.parks.length}})` : `소속 주요 공원 정보 (${{d.parks.length}}개소)`}}</div>
       <div>${{parksHtml}}</div>
     `);
   }}
 
   function showParkDetail(p) {{
     if (!p) return;
+    inspectorState = {{ type: 'park', id: p.name }};
+    const isEn = currentLang === 'en';
     const targetGu = getParkGu(p);
+    const targetGuDisp = guLabel(targetGu);
+    const dongDisp = isEn ? (p.dong_nm_en || dongFullLabel(p.dong_cd)) : p.dong_nm;
+    const addrDisp = parkAddrLabel(p);
+
     let backBtn;
     if (currentGu === 'ALL') {{
-      backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{targetGu}}만 확대</button></div>`;
+      backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">${{isEn ? '← All Seoul Summary' : '← 서울 전체 요약'}}</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{isEn ? `Zoom to ${{targetGuDisp}}` : `${{targetGu}}만 확대`}}</button></div>`;
     }} else if (targetGu === currentGu) {{
-      backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button>`;
+      backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">${{isEn ? `← Back to ${{guLabel(currentGu)}}` : `← ${{currentGu}} 목록으로`}}</button>`;
     }} else {{
-      backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{targetGu}}로 이동</button></div>`;
+      backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">${{isEn ? `← Back to ${{guLabel(currentGu)}}` : `← ${{currentGu}} 목록으로`}}</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{isEn ? `Go to ${{targetGuDisp}}` : `${{targetGu}}로 이동`}}</button></div>`;
     }}
 
     renderInspector(backBtn, `
-      <div class="section-kicker">${{targetGu}} · 주요 도시공원</div>
-      <div class="detail-header"><h2 class="detail-title">${{p.name}}</h2><span class="status-tag has-park">${{p.area_ha.toLocaleString()}} ha</span></div>
+      <div class="section-kicker">${{targetGuDisp}} · ${{isEn ? 'Major Urban Park' : '주요 도시공원'}}</div>
+      <div class="detail-header"><h2 class="detail-title">${{parkNameLabel(p)}}</h2><span class="status-tag has-park">${{p.area_ha.toLocaleString()}} ha</span></div>
       <table class="clean-table" style="margin-top:12px;"><tbody>
-        <tr><td>위치 행정동</td><td class="num"><span class="gu-link" onclick="showDongDetail('${{p.dong_cd}}')">${{p.dong_nm}}</span></td></tr>
-        <tr><td>주소</td><td class="num">${{p.addr || '-'}}</td></tr>
+        <tr><td>${{isEn ? 'Administrative Dong' : '위치 행정동'}}</td><td class="num"><span class="gu-link" onclick="showDongDetail('${{p.dong_cd}}')">${{dongDisp}}</span></td></tr>
+        <tr><td>${{isEn ? 'Address' : '주소'}}</td><td class="num">${{addrDisp || '-'}}</td></tr>
       </tbody></table>
-      <div class="sub-heading">주요 보유 시설</div>
-      <div class="park-item"><div class="park-item-meta" style="color:var(--text-body);line-height:1.55;">${{p.fclt || '등록된 시설 상세 정보가 없습니다.'}}</div></div>
+      <div class="sub-heading">${{isEn ? 'Key Facilities' : '주요 보유 시설'}}</div>
+      <div class="park-item"><div class="park-item-meta" style="color:var(--text-body);line-height:1.55;">${{p.fclt || (isEn ? 'No facility details available.' : '등록된 시설 상세 정보가 없습니다.')}}</div></div>
     `);
   }}
 
@@ -1423,6 +1911,11 @@ class DashboardBuilder:
     origParkHaloTrace = {{ ...mapPlot.data[2] }};
     origParkBorderTrace = {{ ...mapPlot.data[3] }};
     origParkTrace = {{ ...mapPlot.data[4], marker: {{ ...mapPlot.data[4].marker }} }};
+
+    const distDiv = document.querySelector('#topic1-dist-panel .plotly-graph-div');
+    if (distDiv && distDiv.data) {{
+      origDistCustomdata = distDiv.data.map(t => (t.customdata || []).map(row => [...row]));
+    }}
 
     const DRAG_CLICK_THRESHOLD_PX = 5;
     let dragStartPos = null;
@@ -1493,9 +1986,9 @@ class DashboardBuilder:
         const path = findDongPath(mapPlot, pt.location);
         if (path) path.classList.add('is-selected');
         showDongDetail(pt.location);
-      }} else if (pt.data && (pt.data.meta === 'park' || pt.data.name === '주요 공원')) {{
-        const name = pt.customdata && pt.customdata[0];
-        const found = DETAIL_DATA.parks.find(x => x.name === name);
+      }} else if (pt.data && (pt.data.meta === 'park' || pt.data.name === '주요 공원' || pt.data.name === 'Major Parks')) {{
+        const canonicalName = pt.customdata && (pt.customdata[4] || pt.customdata[0]);
+        const found = PARK_BY_NAME[canonicalName] || DETAIL_DATA.parks.find(x => x.name === canonicalName || x.name_en === canonicalName);
         if (found) {{
           document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
           const targetGu = getParkGu(found);

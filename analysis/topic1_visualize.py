@@ -398,6 +398,12 @@ class SeoulParkMapChart(Chart):
         park_cds = set(wk.loc[wk["has_park"], "dong_cd"])
 
         parks = pd.read_csv(self.park_csv, dtype={"dong_cd": str})
+        parks["canon_cd"] = parks["dong_cd"].astype(str).str[:8].map(lambda c: CODE_REMAP.get(c, c))
+        rgn_series = parks["rgn"].astype(str).str.strip()
+        parks["rgn_clean"] = parks["rgn"].where(
+            parks["rgn"].notna() & (rgn_series != "") & (rgn_series.str.lower() != "nan"),
+            parks["canon_cd"].map(self.names.dong_to_gu),
+        ).fillna("")
         parks["area_m2"] = pd.to_numeric(parks["area_m2"], errors="coerce").fillna(10000)
         parks["area_ha"] = parks["area_m2"] / 10000.0
         sizes = np.clip(np.log1p(parks["area_m2"]) * 0.9 - 2.5, 4.5, 11.5)
@@ -464,9 +470,10 @@ class SeoulParkMapChart(Chart):
         fig.add_trace(go.Scattergeo(
             lat=parks["ycrd"].tolist(),
             lon=parks["xcrd"].tolist(),
+            meta="park",
             mode="markers",
             marker=dict(size=sizes.tolist(), color="#111827", opacity=0.85, line=dict(color="#FFFFFF", width=0.9)),
-            customdata=np.stack([parks["park_nm"], parks["rgn"], parks["area_ha"], parks["park_addr"].fillna("")], axis=-1).tolist(),
+            customdata=np.stack([parks["park_nm"], parks["rgn_clean"], parks["area_ha"], parks["park_addr"].fillna(""), parks["park_nm"]], axis=-1).tolist(),
             hovertemplate="<b>%{customdata[0]}</b> (%{customdata[1]}) · 면적 %{customdata[2]:,.1f} ha<extra>주요 공원</extra>",
             name="주요 공원",
             showlegend=True,
@@ -517,8 +524,10 @@ class RateDistributionChart(Chart):
         fig.update_layout(boxmode="group", boxgroupgap=0.28, height=480,
                           xaxis=dict(categoryorder="array", categoryarray=DAY_TYPES),
                           yaxis=dict(title="1월 → 5월 증가율 (%)", ticksuffix="%", zeroline=False))
-        return Theme.apply(fig, "공원 보유 여부에 따른 계절 증가율 분포",
-                           "2023~2026년 낮(10~17시) 평균 · 점 하나 = 행정동 하나")
+        Theme.apply(fig, "공원 보유 여부에 따른 계절 증가율 분포",
+                    "2023~2026년 낮(10~17시) 평균 · 점 하나 = 행정동 하나")
+        fig.update_layout(legend=dict(y=1.12), margin=dict(t=106, l=56, r=24, b=48))
+        return fig
 
 
 class YearlyTrendChart(Chart):
