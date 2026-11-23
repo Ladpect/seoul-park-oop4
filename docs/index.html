@@ -157,6 +157,7 @@
     }
     table.clean-table th.num, table.clean-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
     table.clean-table td { padding: 8px 4px; border-bottom: 1px solid #F3F4F6; color: var(--text-body); }
+    table.clean-table td.address { text-align: right; overflow-wrap: anywhere; }
     table.top5-table td { padding: 6.5px 4px; line-height: 1.3; }
     .top5-sub { display: block; font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
     table.clean-table tr:last-child td { border-bottom: none; }
@@ -1685,7 +1686,7 @@
       <div class="detail-header"><h2 class="detail-title">${parkNameLabel(p)}</h2><span class="status-tag has-park">${p.area_ha.toLocaleString()} ha</span></div>
       <table class="clean-table" style="margin-top:12px;"><tbody>
         <tr><td>${isEn ? 'Administrative Dong' : '위치 행정동'}</td><td class="num"><span class="gu-link" onclick="showDongDetail('${p.dong_cd}')">${dongDisp}</span></td></tr>
-        <tr><td>${isEn ? 'Address' : '주소'}</td><td class="num">${addrDisp || '-'}</td></tr>
+        <tr><td>${isEn ? 'Address' : '주소'}</td><td class="address">${addrDisp || '-'}</td></tr>
       </tbody></table>
       <div class="sub-heading">${isEn ? 'Key Facilities' : '주요 보유 시설'}</div>
       <div class="park-item"><div class="park-item-meta" style="color:var(--text-body);line-height:1.55;">${p.fclt || (isEn ? 'No facility details available.' : '등록된 시설 상세 정보가 없습니다.')}</div></div>
