@@ -629,6 +629,24 @@ class DashboardBuilder:
     }});
   }}
 
+  function interruptZoomForGesture(mapPlot) {{
+    if (zoomAnimFrameId === null) return;
+    cancelZoomAnimation();
+    const view = getCurrentGeoView(mapPlot);
+    if (!view) return;
+
+    // Plotly.relayout redraws asynchronously. Rebind the geo gesture handlers
+    // synchronously so the initiating event starts from the visible projection.
+    const fullGeo = mapPlot._fullLayout.geo;
+    for (const geo of [mapPlot.layout.geo, fullGeo]) {{
+      geo.fitbounds = false;
+      geo.center = {{ lon: view.lon, lat: view.lat }};
+      geo.projection.scale = view.scale;
+      geo.projection.rotation = {{ ...geo.projection.rotation, lon: view.lon, lat: 0 }};
+    }}
+    fullGeo._subplot.updateFx(mapPlot._fullLayout, fullGeo);
+  }}
+
   function animateGeoView(mapPlot, fromView, toView, token, durationMs = ZOOM_DURATION_MS) {{
     const sub = getGeoSubplot(mapPlot);
     if (!sub || !toView) return;
@@ -797,6 +815,10 @@ class DashboardBuilder:
     if (scrollEl) scrollEl.scrollTop = 0;
   }}
 
+  function getParkGu(park) {{
+    return Object.hasOwn(DETAIL_DATA.gus, park.dong_gu) ? park.dong_gu : park.gu;
+  }}
+
   function updateMapView({{ animateZoom = true, keepViewport = false }} = {{}}) {{
     const mapPlot = document.querySelector('#map-panel .plotly-graph-div');
     if (!mapPlot || !origDongTrace) return;
@@ -841,7 +863,7 @@ class DashboardBuilder:
     const activeParkIdx = [];
     const dimParkIdx = [];
     DETAIL_DATA.parks.forEach((p, i) => {{
-      if (isAll || p.dong_gu === currentGu || p.gu === currentGu) activeParkIdx.push(i);
+      if (isAll || getParkGu(p) === currentGu) activeParkIdx.push(i);
       else dimParkIdx.push(i);
     }});
 
@@ -1105,19 +1127,18 @@ class DashboardBuilder:
 
   function showParkDetail(p) {{
     if (!p) return;
-    const targetGu = DETAIL_DATA.gus[p.dong_gu] ? p.dong_gu : p.gu;
-    const inCurrentGu = p.dong_gu === currentGu || p.gu === currentGu;
+    const targetGu = getParkGu(p);
     let backBtn;
     if (currentGu === 'ALL') {{
       backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{targetGu}}만 확대</button></div>`;
-    }} else if (inCurrentGu) {{
+    }} else if (targetGu === currentGu) {{
       backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button>`;
     }} else {{
       backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{targetGu}}로 이동</button></div>`;
     }}
 
     renderInspector(backBtn, `
-      <div class="section-kicker">${{p.gu}} · 주요 도시공원</div>
+      <div class="section-kicker">${{targetGu}} · 주요 도시공원</div>
       <div class="detail-header"><h2 class="detail-title">${{p.name}}</h2><span class="status-tag has-park">${{p.area_ha.toLocaleString()}} ha</span></div>
       <table class="clean-table" style="margin-top:12px;"><tbody>
         <tr><td>위치 행정동</td><td class="num"><span class="gu-link" onclick="showDongDetail('${{p.dong_cd}}')">${{p.dong_nm}}</span></td></tr>
@@ -1144,10 +1165,10 @@ class DashboardBuilder:
     let mapDragged = false;
 
     mapPlot.addEventListener('pointerdown', (ev) => {{
-      if (zoomAnimFrameId !== null) cancelZoomAnimation();
+      interruptZoomForGesture(mapPlot);
       dragStartPos = {{ x: ev.clientX, y: ev.clientY }};
       mapDragged = false;
-    }}, {{ passive: true }});
+    }}, {{ capture: true, passive: true }});
 
     window.addEventListener('pointermove', (ev) => {{
       if (!dragStartPos || mapDragged) return;
@@ -1170,8 +1191,8 @@ class DashboardBuilder:
     }}, {{ passive: true }});
 
     mapPlot.addEventListener('wheel', () => {{
-      if (zoomAnimFrameId !== null) cancelZoomAnimation();
-    }}, {{ passive: true }});
+      interruptZoomForGesture(mapPlot);
+    }}, {{ capture: true, passive: true }});
 
     mapPlot.on('plotly_relayouting', () => {{
       if (dragStartPos) mapDragged = true;
@@ -1213,11 +1234,9 @@ class DashboardBuilder:
         const found = DETAIL_DATA.parks.find(x => x.name === name);
         if (found) {{
           document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
-          if (found.dong_gu !== currentGu && found.gu !== currentGu) {{
-            const targetGu = DETAIL_DATA.gus[found.dong_gu] ? found.dong_gu : found.gu;
-            if (targetGu && DETAIL_DATA.gus[targetGu]) {{
-              selectGu(targetGu, {{ showSidebar: false }});
-            }}
+          const targetGu = getParkGu(found);
+          if (targetGu !== currentGu && Object.hasOwn(DETAIL_DATA.gus, targetGu)) {{
+            selectGu(targetGu, {{ showSidebar: false }});
           }}
           showParkDetail(found);
         }}
