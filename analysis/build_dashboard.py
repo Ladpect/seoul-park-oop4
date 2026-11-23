@@ -283,15 +283,20 @@ class DashboardBuilder:
       background: var(--surface);
       border-bottom: 1px solid var(--border);
       padding: 34px 0 28px;
+      cursor: pointer;
     }}
     .header-inner {{
       display: flex; align-items: flex-start; justify-content: space-between;
       gap: 20px; flex-wrap: wrap;
     }}
     .header-copy {{ flex: 1 1 560px; min-width: 0; }}
-    .lang-toggle {{ flex-shrink: 0; margin-top: 2px; }}
+    .segmented.lang-toggle {{
+      display: inline-grid; grid-template-columns: repeat(2, 1fr);
+      flex-shrink: 0; margin-top: 2px; cursor: pointer;
+    }}
     .lang-btn {{
       font-family: inherit; font-size: 12px; font-weight: 500;
+      display: grid; place-items: center; text-align: center; line-height: 1.4;
       color: var(--text-muted); background: transparent;
       border: 1px solid transparent; border-radius: 3px; padding: 5px 11px; cursor: pointer;
       transition: color 0.15s ease, background-color 0.15s ease;
@@ -472,16 +477,16 @@ class DashboardBuilder:
 </head>
 <body>
 
-<header>
+<header onclick="setLanguage(currentLang === 'ko' ? 'en' : 'ko')">
   <div class="container header-inner">
     <div class="header-copy">
       <h1 data-i18n="header.title">서울시 도시공원이 주간 생활인구에 미치는 영향</h1>
       <p data-i18n="header.desc">서울 424개 행정동(공원 보유 102개 · 미보유 322개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.</p>
     </div>
-    <div class="segmented lang-toggle" role="group" aria-label="Language">
-      <button type="button" class="lang-btn active" data-lang="ko" onclick="setLanguage('ko')">한국어</button>
-      <button type="button" class="lang-btn" data-lang="en" onclick="setLanguage('en')">English</button>
-    </div>
+    <button type="button" class="segmented lang-toggle" aria-label="한국어 ↔ English">
+      <span class="lang-btn active" data-lang="ko">한국어</span>
+      <span class="lang-btn" data-lang="en">English</span>
+    </button>
   </div>
 </header>
 

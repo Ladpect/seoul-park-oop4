@@ -491,7 +491,10 @@ class SeoulParkMapChart(Chart):
             "서울시 행정동 봄철 생활인구 증가율 및 주요 공원 분포",
             "짙은 청록색 실선 테두리 = 공원 보유 동 · 점선 = 자치구 경계 · 자치구 클릭 또는 상단 필터로 구별 확대",
         )
-        fig.update_layout(margin=dict(t=68, l=8, r=8, b=8), legend=dict(x=0.98, y=0.04, yanchor="bottom"))
+        fig.update_layout(
+            margin=dict(t=68, l=8, r=8, b=8),
+            legend=dict(x=1, y=0, xanchor="right", yanchor="bottom", bgcolor="rgba(255,255,255,0.6)"),
+        )
         return fig
 
 
