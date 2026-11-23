@@ -581,11 +581,106 @@ class DashboardBuilder:
     const sub = getGeoSubplot(mapPlot);
     if (!sub || !sub.projection || !sub.midPt || !sub.fitScale) return null;
     const center = sub.projection.invert(sub.midPt);
-    const scale = sub.projection.scale() / sub.fitScale;
+    const rawScale = sub.projection.scale();
+    const scale = rawScale / sub.fitScale;
     if (!center || !Number.isFinite(center[0]) || !Number.isFinite(center[1]) || !Number.isFinite(scale) || scale <= 0) {{
       return null;
     }}
-    return {{ lon: center[0], lat: center[1], scale }};
+    return {{ lon: center[0], lat: center[1], scale, rawScale }};
+  }}
+
+  function getGeoBoxSize(mapPlot) {{
+    const fullGeo = mapPlot && mapPlot._fullLayout && mapPlot._fullLayout.geo;
+    const sz = mapPlot && mapPlot._fullLayout && mapPlot._fullLayout._size;
+    if (!sz) return null;
+    const dom = (fullGeo && fullGeo.domain) || {{ x: [0, 1], y: [0, 1] }};
+    const w = sz.w * (dom.x[1] - dom.x[0]);
+    const h = sz.h * (dom.y[1] - dom.y[0]);
+    if (!(w > 0) || !(h > 0)) return null;
+    return {{ w, h }};
+  }}
+
+  function computeFullWidthLatRange(mapPlot) {{
+    const box = getGeoBoxSize(mapPlot);
+    if (!box) return [-76.4, 76.4];
+    if (box.w <= box.h) return [-85.05, 85.05];
+    const yHalf = Math.PI * (box.h / box.w);
+    const phi = Math.max(10, Math.min(85.05, (Math.atan(Math.sinh(yHalf) * Math.SQRT1_2) * 180) / Math.PI));
+    return [Number((-phi).toFixed(4)), Number(phi.toFixed(4))];
+  }}
+
+  function computeGeoViewForBox(guName, w, h) {{
+    const boundsObj = DETAIL_DATA.gu_bounds || {{}};
+    const bbox = boundsObj[guName] || boundsObj.ALL;
+    if (!bbox || !(w > 0) || !(h > 0)) return null;
+    const [minLon, maxLon, minLat, maxLat] = bbox;
+    const lonSpanRad = Math.max(((maxLon - minLon) * Math.PI) / 180, 1e-6);
+    const yMin = mercatorY(minLat);
+    const yMax = mercatorY(maxLat);
+    const latSpanMerc = Math.max(yMax - yMin, 1e-6);
+    const fillRatio = guName === 'ALL' ? 0.90 : 0.80;
+    const rawScale = Math.min((w * fillRatio) / lonSpanRad, (h * fillRatio) / latSpanMerc);
+    const fitScale = w / (2 * Math.PI);
+    return {{
+      lon: (minLon + maxLon) / 2,
+      lat: invMercatorY((yMin + yMax) / 2),
+      scale: rawScale / fitScale,
+      rawScale,
+    }};
+  }}
+
+  function syncGeoViewportAspect(mapPlot, {{ preserveView = null, fitGu = null }} = {{}}) {{
+    const fullGeo = mapPlot && mapPlot._fullLayout && mapPlot._fullLayout.geo;
+    const box = getGeoBoxSize(mapPlot);
+    if (!fullGeo || !box) return Promise.resolve();
+    const targetRange = computeFullWidthLatRange(mapPlot);
+    const curRange = fullGeo.lataxis && fullGeo.lataxis.range;
+    const needsUpdate = !curRange ||
+      Math.abs(curRange[1] - targetRange[1]) > 0.05 ||
+      Math.abs(curRange[0] - targetRange[0]) > 0.05;
+    if (!needsUpdate && !preserveView && !fitGu) return Promise.resolve();
+
+    let targetView = null;
+    if (fitGu) {{
+      targetView = computeGeoViewForBox(fitGu, box.w, box.h);
+    }} else {{
+      const view = preserveView || getCurrentGeoView(mapPlot);
+      if (view && Number.isFinite(view.rawScale)) {{
+        const newFitScale = box.w / (2 * Math.PI);
+        targetView = {{
+          lon: view.lon,
+          lat: view.lat,
+          scale: view.rawScale / newFitScale,
+          rawScale: view.rawScale,
+        }};
+      }}
+    }}
+    if (!targetView) return Promise.resolve();
+
+    const relayoutUpdate = {{
+      'geo.lataxis.range': targetRange,
+      'geo.fitbounds': false,
+      'geo.center.lon': targetView.lon,
+      'geo.center.lat': targetView.lat,
+      'geo.projection.rotation.lon': targetView.lon,
+      'geo.projection.rotation.lat': 0,
+      'geo.projection.scale': targetView.scale,
+    }};
+
+    return Promise.resolve(Plotly.relayout(mapPlot, relayoutUpdate)).then(() => {{
+      const sub = getGeoSubplot(mapPlot);
+      if (fitGu && sub && typeof sub.saveViewInitial === 'function') {{
+        sub.saveViewInitial(mapPlot._fullLayout.geo);
+      }}
+      if (elevationState.gu && elevationState.uid && elevationState.strength > 0.001) {{
+        applyElevationShadow(
+          findChoroplethGroup(mapPlot, elevationState.uid),
+          elevationState.strength,
+          elevationState.gu,
+          elevationState.uid
+        );
+      }}
+    }});
   }}
 
   function computeTargetGeoView(mapPlot, guName) {{
@@ -674,6 +769,19 @@ class DashboardBuilder:
     }});
   }}
 
+  function syncGeoLayoutFields(mapPlot, view) {{
+    if (!mapPlot || !mapPlot.layout || !mapPlot._fullLayout || !mapPlot._fullLayout.geo || !view) return;
+    for (const geo of [mapPlot.layout.geo, mapPlot._fullLayout.geo]) {{
+      if (!geo) continue;
+      geo.fitbounds = false;
+      geo.center = {{ lon: view.lon, lat: view.lat }};
+      if (geo.projection) {{
+        geo.projection.scale = view.scale;
+        geo.projection.rotation = {{ ...geo.projection.rotation, lon: view.lon, lat: 0 }};
+      }}
+    }}
+  }}
+
   function interruptZoomForGesture(mapPlot) {{
     if (zoomAnimFrameId === null) return;
     cancelZoomAnimation();
@@ -696,13 +804,8 @@ class DashboardBuilder:
 
     // Plotly.relayout redraws asynchronously. Rebind the geo gesture handlers
     // synchronously so the initiating event starts from the visible projection.
+    syncGeoLayoutFields(mapPlot, view);
     const fullGeo = mapPlot._fullLayout.geo;
-    for (const geo of [mapPlot.layout.geo, fullGeo]) {{
-      geo.fitbounds = false;
-      geo.center = {{ lon: view.lon, lat: view.lat }};
-      geo.projection.scale = view.scale;
-      geo.projection.rotation = {{ ...geo.projection.rotation, lon: view.lon, lat: 0 }};
-    }}
     fullGeo._subplot.updateFx(mapPlot._fullLayout, fullGeo);
   }}
 
@@ -727,6 +830,7 @@ class DashboardBuilder:
     }}
 
     function finishCommit() {{
+      syncGeoLayoutFields(mapPlot, toView);
       if (shadowAnim) applyShadowAt(shadowAnim.to);
       Promise.resolve(commitGeoLayout(mapPlot, toView)).then(() => {{
         if (token !== animToken || !shadowAnim) return;
@@ -736,6 +840,7 @@ class DashboardBuilder:
 
     if (reduceMotion || durationMs <= 0 || (viewNegligible && shadowNegligible)) {{
       if (!viewNegligible) applyProjectionView(sub, toView);
+      syncGeoLayoutFields(mapPlot, toView);
       finishCommit();
       return;
     }}
@@ -766,7 +871,9 @@ class DashboardBuilder:
         const w = hasScaleDelta ? (invS0 - 1 / curScale) / (invS0 - invS1) : ease;
         const curLon = safeFrom.lon + (toView.lon - safeFrom.lon) * w;
         const curLat = invMercatorY(y0 + (y1 - y0) * w);
-        applyProjectionView(liveSub, {{ lon: curLon, lat: curLat, scale: curScale }});
+        const curView = {{ lon: curLon, lat: curLat, scale: curScale }};
+        applyProjectionView(liveSub, curView);
+        syncGeoLayoutFields(mapPlot, curView);
       }}
       if (shadowAnim && !shadowNegligible) {{
         const curShadow = shadowAnim.from + (shadowAnim.to - shadowAnim.from) * ease;
@@ -879,7 +986,11 @@ class DashboardBuilder:
     pane.classList.add('active');
     btn.classList.add('active');
     if (window.Plotly) {{
-      pane.querySelectorAll('.plotly-graph-div').forEach(div => Plotly.Plots.resize(div));
+      pane.querySelectorAll('.plotly-graph-div').forEach(div => {{
+        Promise.resolve(Plotly.Plots.resize(div)).then(() => {{
+          if (tabId === 'overview' && div.closest('#map-panel')) syncGeoViewportAspect(div);
+        }});
+      }});
     }}
   }}
 
@@ -1099,6 +1210,9 @@ class DashboardBuilder:
       );
     }}
 
+    const latRange = computeFullWidthLatRange(mapPlot);
+    const box = getGeoBoxSize(mapPlot);
+    const initialLayoutView = startView || (box ? computeGeoViewForBox(currentGu, box.w, box.h) : null);
     const layoutCopy = {{
       template: mapPlot.layout.template,
       paper_bgcolor: '#FFFFFF',
@@ -1108,14 +1222,15 @@ class DashboardBuilder:
       legend: mapPlot.layout.legend,
       margin: mapPlot.layout.margin,
       height: mapPlot.layout.height,
-      geo: startView ? {{
+      geo: initialLayoutView ? {{
         fitbounds: false,
         visible: false,
-        center: {{ lon: startView.lon, lat: startView.lat }},
+        center: {{ lon: initialLayoutView.lon, lat: initialLayoutView.lat }},
+        lataxis: {{ range: latRange }},
         projection: {{
           type: 'mercator',
-          scale: startView.scale,
-          rotation: {{ lon: startView.lon, lat: 0, roll: 0 }},
+          scale: initialLayoutView.scale,
+          rotation: {{ lon: initialLayoutView.lon, lat: 0, roll: 0 }},
         }},
         bgcolor: 'rgba(0,0,0,0)',
       }} : {{
@@ -1140,6 +1255,10 @@ class DashboardBuilder:
         }} else {{
           clearOtherElevationFilters(mapPlot, null);
           elevationState = {{ gu: null, strength: 0, uid: null }};
+        }}
+        const postLatRange = computeFullWidthLatRange(mapPlot);
+        if (Math.abs(postLatRange[1] - latRange[1]) > 0.05) {{
+          syncGeoViewportAspect(mapPlot, {{ preserveView: startView }});
         }}
         return;
       }}
@@ -1393,8 +1512,18 @@ class DashboardBuilder:
       }}
     }});
 
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {{
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {{
+        if (zoomAnimFrameId !== null) return;
+        syncGeoViewportAspect(mapPlot);
+      }}, 120);
+    }}, {{ passive: true }});
+
     const initGu = new URLSearchParams(window.location.search).get('gu');
     if (initGu && DETAIL_DATA.gus[initGu]) selectGu(initGu, {{ animate: false }});
+    else syncGeoViewportAspect(mapPlot, {{ fitGu: 'ALL' }});
   }});
 </script>
 </body>
