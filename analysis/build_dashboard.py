@@ -3,7 +3,8 @@
 
 1. 역할:
    - 비대칭 Split View와 리스트형 테이블, 벡터 SVG 지도를 조합해 `docs/index.html`을 생성합니다.
-   - 상단 자치구 필터로 특정 구(예: 노원구, 종로구)를 고르면 해당 구의 행정동만 지도에 확대 표시되며,
+   - 상단 자치구 필터로 특정 구(예: 노원구, 종로구)를 고르면 해당 구역으로 부드럽게 확대·이동하며
+     선택 자치구 밖의 행정동·경계·공원 마커는 25% 투명도로 유지 표시되고,
      각 행정동 도형 호버 시 빛남 효과 및 클릭 시 상세 통계 인스펙터를 제공합니다.
 """
 import json
@@ -111,6 +112,29 @@ class DashboardBuilder:
                     bucket["lat"].extend([p[1] for p in ring] + [None])
             return res
 
+        def extract_bounds(features):
+            boxes = {}
+            all_box = [float("inf"), float("-inf"), float("inf"), float("-inf")]
+            for ft in features:
+                gu_nm = self.names.dong_to_gu.get(ft["properties"]["dong_cd"], "")
+                box = boxes.setdefault(gu_nm, [float("inf"), float("-inf"), float("inf"), float("-inf")])
+                for poly in ft["geometry"]["coordinates"]:
+                    for lon, lat in poly[0]:
+                        for b in (all_box, box):
+                            if lon < b[0]:
+                                b[0] = lon
+                            if lon > b[1]:
+                                b[1] = lon
+                            if lat < b[2]:
+                                b[2] = lat
+                            if lat > b[3]:
+                                b[3] = lat
+            result = {"ALL": [round(v, 5) for v in all_box]}
+            for gu_nm, box in boxes.items():
+                if gu_nm:
+                    result[gu_nm] = [round(v, 5) for v in box]
+            return result
+
         park_cd_set = {cd for cd, info in dongs.items() if info["has_park"]}
         return {
             "dongs": dongs,
@@ -118,6 +142,7 @@ class DashboardBuilder:
             "parks": parks_list,
             "gu_borders": extract_lines(self.names.gu_geojson["features"]),
             "park_dong_borders": extract_lines(self.names.geojson["features"], filter_set=park_cd_set),
+            "gu_bounds": extract_bounds(self.names.geojson["features"]),
         }
 
     def build_html(self) -> str:
@@ -245,6 +270,18 @@ class DashboardBuilder:
       gap: 28px; align-items: start; margin-top: 28px;
     }}
     @media (max-width: 980px) {{ .split-left, .split-right {{ grid-template-columns: 1fr; }} }}
+    .sidebar-panel {{ padding: 0; }}
+    .sidebar-scroll {{
+      padding: 28px 30px;
+      overflow-y: auto;
+      max-height: 560px;
+      scrollbar-gutter: stable;
+    }}
+    @media (min-width: 981px) {{
+      .overview-split {{ align-items: stretch; }}
+      .sidebar-panel {{ position: relative; overflow: hidden; }}
+      .sidebar-scroll {{ position: absolute; inset: 0; max-height: none; }}
+    }}
 
     /* 지도 상단 자치구 선택 & 모드 컨트롤 바 */
     .map-toolbar {{
@@ -253,7 +290,7 @@ class DashboardBuilder:
       padding-bottom: 16px; margin-bottom: 12px;
       border-bottom: 1px solid var(--border);
     }}
-    .toolbar-left {{ display: flex; align-items: center; gap: 8px; }}
+    .toolbar-left {{ display: flex; align-items: center; gap: 8px; min-height: 34px; }}
     .toolbar-label {{ font-size: 12px; font-weight: 600; color: var(--text-muted); }}
     .gu-select {{
       font-family: inherit; font-size: 13px; font-weight: 500;
@@ -381,37 +418,39 @@ class DashboardBuilder:
 <main class="container">
 
   <section id="overview" class="tab-pane active">
-    <div class="split-left">
-      <div class="panel">
-        <div id="overview-summary">
-          <div class="section-kicker">핵심 발견 · 주말 낮(10–17시)</div>
-          <div class="hero-stat">{t1_wknd['diff']:+.2f}%p</div>
-          <p class="hero-desc">
-            겨울(1월) 대비 봄(5월) 생활인구 증가율에서 공원 보유 동({t1_wknd['mean_park']:+.2f}%)이
-            미보유 동({t1_wknd['mean_none']:+.2f}%)보다 유의미하게 앞섰습니다.
-          </p>
+    <div class="split-left overview-split">
+      <div class="panel sidebar-panel" id="overview-sidebar">
+        <div class="sidebar-scroll" id="overview-sidebar-scroll">
+          <div id="overview-summary">
+            <div class="section-kicker">핵심 발견 · 주말 낮(10–17시)</div>
+            <div class="hero-stat">{t1_wknd['diff']:+.2f}%p</div>
+            <p class="hero-desc">
+              겨울(1월) 대비 봄(5월) 생활인구 증가율에서 공원 보유 동({t1_wknd['mean_park']:+.2f}%)이
+              미보유 동({t1_wknd['mean_none']:+.2f}%)보다 유의미하게 앞섰습니다.
+            </p>
 
-          <table class="clean-table">
-            <tbody>
-              <tr><td>분석 행정동</td><td class="num">424개 동 (25개 자치구)</td></tr>
-              <tr><td>표시 공원 수</td><td class="num">127개 주요 공원</td></tr>
-              <tr><td>분석 시간대</td><td class="num">주말·공휴일 낮 10–17시</td></tr>
-              <tr><td>최대 수혜 세대</td><td class="num accent">유아동 0–9세 ({kids['diff']:+.2f}%p)</td></tr>
-            </tbody>
-          </table>
+            <table class="clean-table">
+              <tbody>
+                <tr><td>분석 행정동</td><td class="num">424개 동 (25개 자치구)</td></tr>
+                <tr><td>표시 공원 수</td><td class="num">127개 주요 공원</td></tr>
+                <tr><td>분석 시간대</td><td class="num">주말·공휴일 낮 10–17시</td></tr>
+                <tr><td>최대 수혜 세대</td><td class="num accent">유아동 0–9세 ({kids['diff']:+.2f}%p)</td></tr>
+              </tbody>
+            </table>
 
-          <div class="sub-heading">봄철 증가율 상위 공원 보유 동 TOP 5</div>
-          <table class="clean-table">
-            <thead>
-              <tr><th>행정동</th><th class="num">1월 → 5월</th><th class="num">증가율</th></tr>
-            </thead>
-            <tbody>
-              {top5_rows_html}
-            </tbody>
-          </table>
+            <div class="sub-heading">봄철 증가율 상위 공원 보유 동 TOP 5</div>
+            <table class="clean-table">
+              <thead>
+                <tr><th>행정동</th><th class="num">1월 → 5월</th><th class="num">증가율</th></tr>
+              </thead>
+              <tbody>
+                {top5_rows_html}
+              </tbody>
+            </table>
+          </div>
+
+          <div id="overview-detail" style="display:none;"></div>
         </div>
-
-        <div id="overview-detail" style="display:none;"></div>
       </div>
 
       <div class="panel chart-panel" id="map-panel">
@@ -504,14 +543,232 @@ class DashboardBuilder:
   const DETAIL_DATA = {detail_json};
   const RATE_SCALE = [[0.0, "#CBD5E1"], [0.44, "#F8FAFC"], [1.0, "#0F766E"]];
   const PARK_SCALE = [[0.0, "#E5E7EB"], [1.0, "#99F6E4"]];
+  const ZOOM_DURATION_MS = 620;
+  const OUTSIDE_ALPHA = 0.25;
+  const PARK_INSIDE_OPACITY = 0.85;
+  const PARK_OUTSIDE_OPACITY = OUTSIDE_ALPHA;
 
   let currentGu = 'ALL';
   let currentColorMode = 'rate';
+  let zoomAnimFrameId = null;
+  let animToken = 0;
   let origDongTrace = null;
   let origBorderTrace = null;
   let origParkHaloTrace = null;
   let origParkBorderTrace = null;
   let origParkTrace = null;
+
+  function mercatorY(latDeg) {{
+    return Math.log(Math.tan(Math.PI / 4 + (latDeg * Math.PI) / 360));
+  }}
+
+  function invMercatorY(y) {{
+    return ((2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180) / Math.PI;
+  }}
+
+  function getGeoSubplot(mapPlot) {{
+    return mapPlot && mapPlot._fullLayout && mapPlot._fullLayout.geo && mapPlot._fullLayout.geo._subplot;
+  }}
+
+  function getCurrentGeoView(mapPlot) {{
+    const sub = getGeoSubplot(mapPlot);
+    if (!sub || !sub.projection || !sub.midPt || !sub.fitScale) return null;
+    const center = sub.projection.invert(sub.midPt);
+    const scale = sub.projection.scale() / sub.fitScale;
+    if (!center || !Number.isFinite(center[0]) || !Number.isFinite(center[1]) || !Number.isFinite(scale) || scale <= 0) {{
+      return null;
+    }}
+    return {{ lon: center[0], lat: center[1], scale }};
+  }}
+
+  function computeTargetGeoView(mapPlot, guName) {{
+    const sub = getGeoSubplot(mapPlot);
+    const boundsObj = DETAIL_DATA.gu_bounds || {{}};
+    const bbox = boundsObj[guName] || boundsObj.ALL;
+    if (!sub || !sub.bounds || !sub.fitScale || !bbox) return null;
+    const [minLon, maxLon, minLat, maxLat] = bbox;
+    const lonSpanRad = Math.max(((maxLon - minLon) * Math.PI) / 180, 1e-6);
+    const yMin = mercatorY(minLat);
+    const yMax = mercatorY(maxLat);
+    const latSpanMerc = Math.max(yMax - yMin, 1e-6);
+    const w = sub.bounds[1][0] - sub.bounds[0][0];
+    const h = sub.bounds[1][1] - sub.bounds[0][1];
+    const fillRatio = guName === 'ALL' ? 0.90 : 0.80;
+    const rawScale = Math.min((w * fillRatio) / lonSpanRad, (h * fillRatio) / latSpanMerc);
+    return {{
+      lon: (minLon + maxLon) / 2,
+      lat: invMercatorY((yMin + yMax) / 2),
+      scale: rawScale / sub.fitScale,
+    }};
+  }}
+
+  function cancelZoomAnimation() {{
+    animToken += 1;
+    if (zoomAnimFrameId !== null) {{
+      cancelAnimationFrame(zoomAnimFrameId);
+      zoomAnimFrameId = null;
+    }}
+  }}
+
+  function applyProjectionView(sub, view) {{
+    sub.projection.center([0, view.lat]);
+    sub.projection.rotate([-view.lon, 0, 0]);
+    sub.projection.scale(view.scale * sub.fitScale);
+    sub.projection.translate(sub.midPt);
+    sub.render(true);
+  }}
+
+  function commitGeoLayout(mapPlot, view) {{
+    return Plotly.relayout(mapPlot, {{
+      'geo.fitbounds': false,
+      'geo.center.lon': view.lon,
+      'geo.center.lat': view.lat,
+      'geo.projection.rotation.lon': view.lon,
+      'geo.projection.rotation.lat': 0,
+      'geo.projection.scale': view.scale,
+    }});
+  }}
+
+  function animateGeoView(mapPlot, fromView, toView, token, durationMs = ZOOM_DURATION_MS) {{
+    const sub = getGeoSubplot(mapPlot);
+    if (!sub || !toView) return;
+    const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const negligible = !fromView || (
+      Math.abs(fromView.lon - toView.lon) < 1e-5 &&
+      Math.abs(fromView.lat - toView.lat) < 1e-5 &&
+      Math.abs(fromView.scale - toView.scale) / Math.max(toView.scale, 1) < 1e-3
+    );
+    if (reduceMotion || durationMs <= 0 || negligible) {{
+      applyProjectionView(sub, toView);
+      commitGeoLayout(mapPlot, toView);
+      return;
+    }}
+
+    const logS0 = Math.log(fromView.scale);
+    const logS1 = Math.log(toView.scale);
+    const invS0 = 1 / fromView.scale;
+    const invS1 = 1 / toView.scale;
+    const y0 = mercatorY(fromView.lat);
+    const y1 = mercatorY(toView.lat);
+    const hasScaleDelta = Math.abs(logS1 - logS0) > 0.05;
+    let startTime = null;
+
+    function step(ts) {{
+      if (token !== animToken) return;
+      const liveSub = getGeoSubplot(mapPlot);
+      if (!liveSub || !liveSub.projection) {{
+        zoomAnimFrameId = null;
+        return;
+      }}
+      if (startTime === null) startTime = ts;
+      const t = Math.min((ts - startTime) / durationMs, 1);
+      const ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      const curScale = Math.exp(logS0 + (logS1 - logS0) * ease);
+      const w = hasScaleDelta ? (invS0 - 1 / curScale) / (invS0 - invS1) : ease;
+      const curLon = fromView.lon + (toView.lon - fromView.lon) * w;
+      const curLat = invMercatorY(y0 + (y1 - y0) * w);
+
+      applyProjectionView(liveSub, {{ lon: curLon, lat: curLat, scale: curScale }});
+      if (t < 1) {{
+        zoomAnimFrameId = requestAnimationFrame(step);
+      }} else {{
+        zoomAnimFrameId = null;
+        commitGeoLayout(mapPlot, toView);
+      }}
+    }}
+
+    zoomAnimFrameId = requestAnimationFrame(step);
+  }}
+
+  function collectOtherLines(lineMap, excludeGu) {{
+    const lon = [];
+    const lat = [];
+    for (const [gu, coords] of Object.entries(lineMap || {{}})) {{
+      if (gu === excludeGu || !coords) continue;
+      for (let i = 0; i < coords.lon.length; i++) {{
+        lon.push(coords.lon[i]);
+        lat.push(coords.lat[i]);
+      }}
+    }}
+    return {{ lon, lat }};
+  }}
+
+  function findDongPath(mapPlot, cd) {{
+    if (!mapPlot) return null;
+    const paths = mapPlot.querySelectorAll('.choroplethlayer .trace.choropleth path.choroplethlocation');
+    for (const p of paths) {{
+      if (p.__data__ && p.__data__.loc === cd) return p;
+    }}
+    return null;
+  }}
+
+  function buildDongTrace(indices, features, opts) {{
+    const locs = indices.map(i => origDongTrace.locations[i]);
+    const custom = indices.map(i => origDongTrace.customdata[i]);
+    const rates = indices.map(i => origDongTrace.z[i]);
+    const parkFlags = locs.map(cd => (DETAIL_DATA.dongs[cd] && DETAIL_DATA.dongs[cd].has_park ? 1 : 0));
+    return {{
+      type: 'choropleth',
+      locationmode: 'geojson-id',
+      uid: opts.uid,
+      geojson: {{ type: 'FeatureCollection', features }},
+      locations: locs,
+      z: currentColorMode === 'rate' ? rates : parkFlags,
+      zmin: currentColorMode === 'rate' ? -12 : 0,
+      zmid: currentColorMode === 'rate' ? 0 : 0.5,
+      zmax: currentColorMode === 'rate' ? 15 : 1,
+      colorscale: currentColorMode === 'rate' ? RATE_SCALE : PARK_SCALE,
+      showscale: opts.showscale,
+      colorbar: origDongTrace.colorbar,
+      marker: {{
+        opacity: opts.opacity,
+        line: {{ width: opts.lineWidth, color: opts.lineColor }},
+      }},
+      customdata: custom,
+      hovertemplate: origDongTrace.hovertemplate,
+      name: opts.name || '행정동',
+      showlegend: false,
+    }};
+  }}
+
+  function buildLineTrace(coords, opts) {{
+    const line = {{ color: opts.color, width: opts.width }};
+    if (opts.dash) line.dash = opts.dash;
+    return {{
+      type: 'scattergeo',
+      uid: opts.uid,
+      mode: 'lines',
+      lon: coords.lon,
+      lat: coords.lat,
+      line,
+      hoverinfo: 'skip',
+      legendgroup: opts.legendgroup,
+      name: opts.name,
+      showlegend: opts.showlegend,
+    }};
+  }}
+
+  function buildParkTrace(indices, opts) {{
+    return {{
+      type: 'scattergeo',
+      uid: opts.uid,
+      meta: 'park',
+      mode: 'markers',
+      lat: indices.map(i => origParkTrace.lat[i]),
+      lon: indices.map(i => origParkTrace.lon[i]),
+      customdata: indices.map(i => origParkTrace.customdata[i]),
+      marker: {{
+        size: indices.map(i => origParkTrace.marker.size[i]),
+        color: '#111827',
+        opacity: opts.opacity,
+        line: {{ color: '#FFFFFF', width: 0.9 }},
+      }},
+      hovertemplate: origParkTrace.hovertemplate,
+      legendgroup: 'parks',
+      name: opts.name,
+      showlegend: opts.showlegend,
+    }};
+  }}
 
   function switchTab(tabId, btn) {{
     document.querySelectorAll('.tab-pane, .tab-btn').forEach(el => el.classList.remove('active'));
@@ -527,6 +784,8 @@ class DashboardBuilder:
     document.getElementById('overview-detail').style.display = 'none';
     document.getElementById('overview-summary').style.display = 'block';
     document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
+    const scrollEl = document.getElementById('overview-sidebar-scroll');
+    if (scrollEl) scrollEl.scrollTop = 0;
   }}
 
   function renderInspector(backHtml, bodyHtml) {{
@@ -534,109 +793,157 @@ class DashboardBuilder:
     const el = document.getElementById('overview-detail');
     el.innerHTML = backHtml + bodyHtml;
     el.style.display = 'block';
+    const scrollEl = document.getElementById('overview-sidebar-scroll');
+    if (scrollEl) scrollEl.scrollTop = 0;
   }}
 
-  function updateMapView() {{
+  function updateMapView({{ animateZoom = true, keepViewport = false }} = {{}}) {{
     const mapPlot = document.querySelector('#map-panel .plotly-graph-div');
     if (!mapPlot || !origDongTrace) return;
+
+    cancelZoomAnimation();
+    const myToken = animToken;
+    document.querySelectorAll('.choroplethlocation.is-hovered').forEach(p => p.classList.remove('is-hovered'));
+    const startView = getCurrentGeoView(mapPlot);
 
     const isAll = currentGu === 'ALL';
     const selEl = document.getElementById('gu-select');
     if (selEl.value !== currentGu) selEl.value = currentGu;
     document.getElementById('gu-reset-btn').style.display = isAll ? 'none' : 'inline-flex';
 
-    // 1. 행정동 필터링
-    const indices = [];
+    // 1. 행정동 분할 (선택 구 vs 타 자치구 25% alpha)
+    const activeDongIdx = [];
+    const dimDongIdx = [];
     origDongTrace.locations.forEach((cd, i) => {{
       const d = DETAIL_DATA.dongs[cd];
-      if (isAll || (d && d.gu === currentGu)) indices.push(i);
+      if (isAll || (d && d.gu === currentGu)) activeDongIdx.push(i);
+      else dimDongIdx.push(i);
     }});
 
-    const filtLocs = indices.map(i => origDongTrace.locations[i]);
-    const filtCustom = indices.map(i => origDongTrace.customdata[i]);
-    const filtRates = indices.map(i => origDongTrace.z[i]);
-    const filtParkFlags = filtLocs.map(cd => (DETAIL_DATA.dongs[cd] && DETAIL_DATA.dongs[cd].has_park ? 1 : 0));
-    const filtFeatures = origDongTrace.geojson.features.filter(ft => isAll || (DETAIL_DATA.dongs[ft.id] && DETAIL_DATA.dongs[ft.id].gu === currentGu));
+    const activeFeatures = [];
+    const dimFeatures = [];
+    origDongTrace.geojson.features.forEach(ft => {{
+      const d = DETAIL_DATA.dongs[ft.id];
+      if (isAll || (d && d.gu === currentGu)) activeFeatures.push(ft);
+      else dimFeatures.push(ft);
+    }});
 
-    const dongTrace = {{
-      type: 'choropleth',
-      locationmode: 'geojson-id',
+    const activeDongTrace = buildDongTrace(activeDongIdx, activeFeatures, {{
       uid: 'dong-' + currentGu + '-' + currentColorMode,
-      geojson: {{ type: 'FeatureCollection', features: filtFeatures }},
-      locations: filtLocs,
-      z: currentColorMode === 'rate' ? filtRates : filtParkFlags,
-      zmin: currentColorMode === 'rate' ? -12 : 0,
-      zmid: currentColorMode === 'rate' ? 0 : 0.5,
-      zmax: currentColorMode === 'rate' ? 15 : 1,
-      colorscale: currentColorMode === 'rate' ? RATE_SCALE : PARK_SCALE,
+      opacity: 1,
       showscale: currentColorMode === 'rate',
-      colorbar: origDongTrace.colorbar,
-      marker: {{ line: {{ width: isAll ? 0.5 : 0.9, color: isAll ? '#E5E7EB' : '#FFFFFF' }} }},
-      customdata: filtCustom,
-      hovertemplate: origDongTrace.hovertemplate,
+      lineWidth: isAll ? 0.6 : 0.9,
+      lineColor: isAll ? '#E5E7EB' : '#FFFFFF',
       name: '행정동',
-      showlegend: false,
-    }};
-
-    // 2. 자치구 외곽 경계선 필터링
-    const borderTrace = {{
-      type: 'scattergeo',
-      uid: 'border-' + currentGu,
-      mode: 'lines',
-      lon: isAll ? origBorderTrace.lon : (DETAIL_DATA.gu_borders[currentGu] || {{ lon: [] }}).lon,
-      lat: isAll ? origBorderTrace.lat : (DETAIL_DATA.gu_borders[currentGu] || {{ lat: [] }}).lat,
-      line: {{ color: '#6B7280', width: isAll ? 1.1 : 1.4, dash: 'dot' }},
-      hoverinfo: 'skip',
-      name: '자치구 경계',
-      showlegend: true,
-    }};
-
-    // 3. 공원 보유 행정동 강조 테두리 필터링 (흰색 외곽선 + 청록색 실선)
-    const pkBounds = isAll ? null : (DETAIL_DATA.park_dong_borders[currentGu] || {{ lon: [], lat: [] }});
-    const parkHaloTrace = {{
-      type: 'scattergeo',
-      uid: 'pk-halo-' + currentGu,
-      mode: 'lines',
-      lon: isAll ? origParkHaloTrace.lon : pkBounds.lon,
-      lat: isAll ? origParkHaloTrace.lat : pkBounds.lat,
-      line: {{ color: '#FFFFFF', width: isAll ? 3.4 : 4.2 }},
-      hoverinfo: 'skip',
-      showlegend: false,
-    }};
-    const parkBorderTrace = {{
-      type: 'scattergeo',
-      uid: 'pk-border-' + currentGu,
-      mode: 'lines',
-      lon: isAll ? origParkBorderTrace.lon : pkBounds.lon,
-      lat: isAll ? origParkBorderTrace.lat : pkBounds.lat,
-      line: {{ color: '#0F766E', width: isAll ? 1.9 : 2.5 }},
-      hoverinfo: 'skip',
-      name: '공원 보유 동 경계',
-      showlegend: true,
-    }};
-
-    // 4. 공원 마커 필터링 (선택된 구의 공원만 표시)
-    const pIdx = [];
-    DETAIL_DATA.parks.forEach((p, i) => {{
-      if (isAll || p.dong_gu === currentGu || p.gu === currentGu) pIdx.push(i);
     }});
-    const parkTrace = {{
-      type: 'scattergeo',
-      uid: 'park-' + currentGu,
-      mode: 'markers',
-      lat: pIdx.map(i => origParkTrace.lat[i]),
-      lon: pIdx.map(i => origParkTrace.lon[i]),
-      customdata: pIdx.map(i => origParkTrace.customdata[i]),
-      marker: {{
-        size: pIdx.map(i => origParkTrace.marker.size[i]),
-        color: '#111827',
-        opacity: 0.85,
-        line: {{ color: '#FFFFFF', width: 0.9 }},
-      }},
-      hovertemplate: origParkTrace.hovertemplate,
-      name: '주요 공원',
-      showlegend: true,
-    }};
+
+    // 2. 공원 마커 분할 (선택 구 vs 타 자치구 25% 투명도)
+    const activeParkIdx = [];
+    const dimParkIdx = [];
+    DETAIL_DATA.parks.forEach((p, i) => {{
+      if (isAll || p.dong_gu === currentGu || p.gu === currentGu) activeParkIdx.push(i);
+      else dimParkIdx.push(i);
+    }});
+
+    const traces = [];
+    if (isAll) {{
+      traces.push(
+        activeDongTrace,
+        buildLineTrace(
+          {{ lon: origBorderTrace.lon, lat: origBorderTrace.lat }},
+          {{ uid: 'border-ALL', color: '#6B7280', width: 1.1, dash: 'dot', legendgroup: 'gu-border', name: '자치구 경계', showlegend: true }}
+        ),
+        buildLineTrace(
+          {{ lon: origParkHaloTrace.lon, lat: origParkHaloTrace.lat }},
+          {{ uid: 'pk-halo-ALL', color: '#FFFFFF', width: 3.4, legendgroup: 'park-border', showlegend: false }}
+        ),
+        buildLineTrace(
+          {{ lon: origParkBorderTrace.lon, lat: origParkBorderTrace.lat }},
+          {{ uid: 'pk-border-ALL', color: '#0F766E', width: 1.9, legendgroup: 'park-border', name: '공원 보유 동 경계', showlegend: true }}
+        ),
+        buildParkTrace(activeParkIdx, {{
+          uid: 'park-ALL',
+          opacity: PARK_INSIDE_OPACITY,
+          name: '주요 공원',
+          showlegend: true,
+        }})
+      );
+    }} else {{
+      const activeGuBounds = DETAIL_DATA.gu_borders[currentGu] || {{ lon: [], lat: [] }};
+      const dimGuBounds = collectOtherLines(DETAIL_DATA.gu_borders, currentGu);
+      const activePkBounds = DETAIL_DATA.park_dong_borders[currentGu] || {{ lon: [], lat: [] }};
+      const dimPkBounds = collectOtherLines(DETAIL_DATA.park_dong_borders, currentGu);
+
+      traces.push(
+        buildDongTrace(dimDongIdx, dimFeatures, {{
+          uid: 'dong-dim-' + currentGu + '-' + currentColorMode,
+          opacity: OUTSIDE_ALPHA,
+          showscale: false,
+          lineWidth: 0.5,
+          lineColor: '#E5E7EB',
+          name: '타 자치구 행정동',
+        }}),
+        activeDongTrace,
+        buildLineTrace(dimGuBounds, {{
+          uid: 'border-dim-' + currentGu,
+          color: `rgba(107, 114, 128, ${{OUTSIDE_ALPHA}})`,
+          width: 1.0,
+          dash: 'dot',
+          legendgroup: 'gu-border',
+          showlegend: false,
+        }}),
+        buildLineTrace(dimPkBounds, {{
+          uid: 'pk-halo-dim-' + currentGu,
+          color: `rgba(255, 255, 255, ${{OUTSIDE_ALPHA}})`,
+          width: 2.8,
+          legendgroup: 'park-border',
+          showlegend: false,
+        }}),
+        buildLineTrace(dimPkBounds, {{
+          uid: 'pk-border-dim-' + currentGu,
+          color: `rgba(15, 118, 110, ${{OUTSIDE_ALPHA}})`,
+          width: 1.5,
+          legendgroup: 'park-border',
+          showlegend: false,
+        }}),
+        buildParkTrace(dimParkIdx, {{
+          uid: 'park-dim-' + currentGu,
+          opacity: PARK_OUTSIDE_OPACITY,
+          name: '타 자치구 공원',
+          showlegend: false,
+        }}),
+        buildLineTrace(activeGuBounds, {{
+          uid: 'border-' + currentGu,
+          color: '#6B7280',
+          width: 1.5,
+          dash: 'dot',
+          legendgroup: 'gu-border',
+          name: '자치구 경계',
+          showlegend: true,
+        }}),
+        buildLineTrace(activePkBounds, {{
+          uid: 'pk-halo-' + currentGu,
+          color: '#FFFFFF',
+          width: 4.2,
+          legendgroup: 'park-border',
+          showlegend: false,
+        }}),
+        buildLineTrace(activePkBounds, {{
+          uid: 'pk-border-' + currentGu,
+          color: '#0F766E',
+          width: 2.5,
+          legendgroup: 'park-border',
+          name: '공원 보유 동 경계',
+          showlegend: true,
+        }}),
+        buildParkTrace(activeParkIdx, {{
+          uid: 'park-' + currentGu,
+          opacity: PARK_INSIDE_OPACITY,
+          name: '주요 공원',
+          showlegend: true,
+        }})
+      );
+    }}
 
     const layoutCopy = {{
       template: mapPlot.layout.template,
@@ -647,25 +954,42 @@ class DashboardBuilder:
       legend: mapPlot.layout.legend,
       margin: mapPlot.layout.margin,
       height: mapPlot.layout.height,
-      geo: {{
+      geo: startView ? {{
+        fitbounds: false,
+        visible: false,
+        center: {{ lon: startView.lon, lat: startView.lat }},
+        projection: {{
+          type: 'mercator',
+          scale: startView.scale,
+          rotation: {{ lon: startView.lon, lat: 0, roll: 0 }},
+        }},
+        bgcolor: 'rgba(0,0,0,0)',
+      }} : {{
         fitbounds: 'locations',
         visible: false,
         projection: {{ type: 'mercator' }},
         bgcolor: 'rgba(0,0,0,0)',
       }},
       title: {{
-        text: `<span style='color:#111827;font-size:16px;font-weight:600;letter-spacing:-0.02em'>${{isAll ? '서울시 424개 행정동 봄철 생활인구 증가율 및 주요 공원 분포' : currentGu + ' 행정동별 봄철 생활인구 증가율 (' + filtLocs.length + '개 동)'}}</span><br><span style='font-size:12.5px;color:#6B7280;font-weight:400'>${{isAll ? '짙은 청록색 테두리 = 공원 보유 동 · 상단에서 자치구를 선택하면 해당 구만 확대됩니다' : '짙은 청록색 실선 테두리가 둘러진 동이 공원 보유 행정동입니다 · 도형 클릭 시 상세 확인'}}</span>`,
+        text: `<span style='color:#111827;font-size:16px;font-weight:600;letter-spacing:-0.02em'>${{isAll ? '서울시 424개 행정동 봄철 생활인구 증가율 및 주요 공원 분포' : currentGu + ' 행정동별 봄철 생활인구 증가율 (' + activeDongIdx.length + '개 동)'}}</span><br><span style='font-size:12.5px;color:#6B7280;font-weight:400'>${{isAll ? '짙은 청록색 실선 테두리 = 공원 보유 동 · 점선 = 자치구 경계 · 자치구 클릭 또는 상단 필터로 구별 확대' : '짙은 청록색 실선 테두리 = 공원 보유 동 · 타 자치구 클릭 시 해당 구로 필터 전환'}}</span>`,
         x: 0.01,
         xanchor: 'left',
       }},
     }};
 
-    Plotly.react(mapPlot, [dongTrace, borderTrace, parkHaloTrace, parkBorderTrace, parkTrace], layoutCopy);
+    Promise.resolve(Plotly.react(mapPlot, traces, layoutCopy)).then(() => {{
+      if (myToken !== animToken || keepViewport) return;
+      const targetView = computeTargetGeoView(mapPlot, currentGu);
+      const liveStart = getCurrentGeoView(mapPlot) || startView;
+      if (!targetView) return;
+      animateGeoView(mapPlot, liveStart, targetView, myToken, animateZoom ? ZOOM_DURATION_MS : 0);
+    }});
   }}
 
-  function selectGu(guName) {{
+  function selectGu(guName, {{ animate = true, showSidebar = true }} = {{}}) {{
     currentGu = guName;
-    updateMapView();
+    updateMapView({{ animateZoom: animate, keepViewport: false }});
+    if (!showSidebar) return;
     if (guName === 'ALL') {{
       resetToSummary();
     }} else {{
@@ -677,7 +1001,7 @@ class DashboardBuilder:
     currentColorMode = mode;
     document.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    updateMapView();
+    updateMapView({{ animateZoom: false, keepViewport: true }});
   }}
 
   function showGuDetail(guName) {{
@@ -715,11 +1039,9 @@ class DashboardBuilder:
   function focusDong(cd) {{
     const mapPlot = document.querySelector('#map-panel .plotly-graph-div');
     if (mapPlot) {{
-      const paths = mapPlot.querySelectorAll('.choroplethlayer .trace.choropleth path.choroplethlocation');
-      const locs = mapPlot.data[0].locations || [];
-      paths.forEach(p => p.classList.remove('is-selected'));
-      const idx = locs.indexOf(cd);
-      if (idx !== -1 && paths[idx]) paths[idx].classList.add('is-selected');
+      document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
+      const path = findDongPath(mapPlot, cd);
+      if (path) path.classList.add('is-selected');
     }}
     showDongDetail(cd);
   }}
@@ -755,9 +1077,14 @@ class DashboardBuilder:
       ? d.parks.map(p => `<div class="park-item"><div class="park-item-title">${{p.name}}</div><div class="park-item-meta">면적 ${{p.area_ha.toLocaleString()}} ha · ${{p.addr}}</div>${{p.fclt ? `<div class="park-item-meta" style="margin-top:4px;color:var(--text-body)">${{p.fclt}}</div>` : ''}}</div>`).join('')
       : '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">이 행정동 경계 내 등록된 주요 도시공원이 없습니다.</div>';
 
-    const backBtn = currentGu === 'ALL'
-      ? `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{d.gu}}만 확대</button></div>`
-      : `<button class="back-btn" onclick="showGuDetail('${{d.gu}}')">← ${{d.gu}} 목록으로</button>`;
+    let backBtn;
+    if (currentGu === 'ALL') {{
+      backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{d.gu}}만 확대</button></div>`;
+    }} else if (d.gu === currentGu) {{
+      backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button>`;
+    }} else {{
+      backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{d.gu}}')">${{d.gu}}로 이동</button></div>`;
+    }}
 
     renderInspector(backBtn, `
       <div class="section-kicker"><span class="gu-link" onclick="selectGu('${{d.gu}}')">${{d.gu}}</span> · 행정동 상세</div>
@@ -778,9 +1105,16 @@ class DashboardBuilder:
 
   function showParkDetail(p) {{
     if (!p) return;
-    const backBtn = currentGu === 'ALL'
-      ? `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{p.dong_gu}}')">${{p.dong_gu}}만 확대</button></div>`
-      : `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button>`;
+    const targetGu = DETAIL_DATA.gus[p.dong_gu] ? p.dong_gu : p.gu;
+    const inCurrentGu = p.dong_gu === currentGu || p.gu === currentGu;
+    let backBtn;
+    if (currentGu === 'ALL') {{
+      backBtn = `<div style="display:flex;gap:6px;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="resetToSummary()">← 서울 전체 요약</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{targetGu}}만 확대</button></div>`;
+    }} else if (inCurrentGu) {{
+      backBtn = `<button class="back-btn" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button>`;
+    }} else {{
+      backBtn = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;"><button class="back-btn" style="margin:0;" onclick="showGuDetail('${{currentGu}}')">← ${{currentGu}} 목록으로</button><button class="back-btn" style="margin:0;" onclick="selectGu('${{targetGu}}')">${{targetGu}}로 이동</button></div>`;
+    }}
 
     renderInspector(backBtn, `
       <div class="section-kicker">${{p.gu}} · 주요 도시공원</div>
@@ -805,18 +1139,51 @@ class DashboardBuilder:
     origParkBorderTrace = {{ ...mapPlot.data[3] }};
     origParkTrace = {{ ...mapPlot.data[4], marker: {{ ...mapPlot.data[4].marker }} }};
 
-    const getPaths = () => {{
-      const trace = mapPlot.querySelector('.choroplethlayer .trace.choropleth');
-      return trace ? trace.querySelectorAll('path.choroplethlocation') : [];
-    }};
+    const DRAG_CLICK_THRESHOLD_PX = 5;
+    let dragStartPos = null;
+    let mapDragged = false;
+
+    mapPlot.addEventListener('pointerdown', (ev) => {{
+      if (zoomAnimFrameId !== null) cancelZoomAnimation();
+      dragStartPos = {{ x: ev.clientX, y: ev.clientY }};
+      mapDragged = false;
+    }}, {{ passive: true }});
+
+    window.addEventListener('pointermove', (ev) => {{
+      if (!dragStartPos || mapDragged) return;
+      if (Math.hypot(ev.clientX - dragStartPos.x, ev.clientY - dragStartPos.y) > DRAG_CLICK_THRESHOLD_PX) {{
+        mapDragged = true;
+      }}
+    }}, {{ passive: true }});
+
+    window.addEventListener('pointerup', (ev) => {{
+      if (!dragStartPos) return;
+      if (Math.hypot(ev.clientX - dragStartPos.x, ev.clientY - dragStartPos.y) > DRAG_CLICK_THRESHOLD_PX) {{
+        mapDragged = true;
+      }}
+      dragStartPos = null;
+    }}, {{ passive: true }});
+
+    window.addEventListener('pointercancel', () => {{
+      dragStartPos = null;
+      mapDragged = false;
+    }}, {{ passive: true }});
+
+    mapPlot.addEventListener('wheel', () => {{
+      if (zoomAnimFrameId !== null) cancelZoomAnimation();
+    }}, {{ passive: true }});
+
+    mapPlot.on('plotly_relayouting', () => {{
+      if (dragStartPos) mapDragged = true;
+    }});
 
     mapPlot.on('plotly_hover', (ev) => {{
       const pt = ev.points && ev.points[0];
       if (!pt) return;
       document.querySelectorAll('.choroplethlocation.is-hovered').forEach(p => p.classList.remove('is-hovered'));
-      if (pt.curveNumber === 0) {{
-        const paths = getPaths();
-        if (paths[pt.pointIndex]) paths[pt.pointIndex].classList.add('is-hovered');
+      if (pt.data && pt.data.type === 'choropleth') {{
+        const path = findDongPath(mapPlot, pt.location);
+        if (path) path.classList.add('is-hovered');
       }}
     }});
 
@@ -825,22 +1192,40 @@ class DashboardBuilder:
     }});
 
     mapPlot.on('plotly_click', (ev) => {{
+      if (mapDragged) {{
+        mapDragged = false;
+        return;
+      }}
       const pt = ev.points && ev.points[0];
       if (!pt) return;
-      document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
-      if (pt.curveNumber === 0) {{
-        const paths = getPaths();
-        if (paths[pt.pointIndex]) paths[pt.pointIndex].classList.add('is-selected');
+      if (pt.data && pt.data.type === 'choropleth') {{
+        const d = DETAIL_DATA.dongs[pt.location];
+        if (d && d.gu && d.gu !== currentGu && DETAIL_DATA.gus[d.gu]) {{
+          selectGu(d.gu);
+          return;
+        }}
+        document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
+        const path = findDongPath(mapPlot, pt.location);
+        if (path) path.classList.add('is-selected');
         showDongDetail(pt.location);
-      }} else if (pt.curveNumber === 4) {{
+      }} else if (pt.data && (pt.data.meta === 'park' || pt.data.name === '주요 공원')) {{
         const name = pt.customdata && pt.customdata[0];
         const found = DETAIL_DATA.parks.find(x => x.name === name);
-        if (found) showParkDetail(found);
+        if (found) {{
+          document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
+          if (found.dong_gu !== currentGu && found.gu !== currentGu) {{
+            const targetGu = DETAIL_DATA.gus[found.dong_gu] ? found.dong_gu : found.gu;
+            if (targetGu && DETAIL_DATA.gus[targetGu]) {{
+              selectGu(targetGu, {{ showSidebar: false }});
+            }}
+          }}
+          showParkDetail(found);
+        }}
       }}
     }});
 
     const initGu = new URLSearchParams(window.location.search).get('gu');
-    if (initGu && DETAIL_DATA.gus[initGu]) selectGu(initGu);
+    if (initGu && DETAIL_DATA.gus[initGu]) selectGu(initGu, {{ animate: false }});
   }});
 </script>
 </body>

@@ -422,8 +422,7 @@ class SeoulParkMapChart(Chart):
             customdata=np.stack([wk["dong_nm"], wk["park_status"], wk["jan"], wk["may"], wk["rate"]], axis=-1).tolist(),
             hovertemplate=(
                 "<b>%{customdata[0]}</b> · %{customdata[1]}<br>"
-                "1월 %{customdata[2]:,.0f}명 → 5월 %{customdata[3]:,.0f}명 · <b>%{customdata[4]:+.2f}%</b><br>"
-                "<span style='color:#99F6E4'>클릭하여 상세 정보 보기</span><extra></extra>"
+                "1월 %{customdata[2]:,.0f}명 → 5월 %{customdata[3]:,.0f}명 · <b>%{customdata[4]:+.2f}%</b><extra></extra>"
             ),
             name="행정동",
             showlegend=False,
@@ -468,10 +467,7 @@ class SeoulParkMapChart(Chart):
             mode="markers",
             marker=dict(size=sizes.tolist(), color="#111827", opacity=0.85, line=dict(color="#FFFFFF", width=0.9)),
             customdata=np.stack([parks["park_nm"], parks["rgn"], parks["area_ha"], parks["park_addr"].fillna("")], axis=-1).tolist(),
-            hovertemplate=(
-                "<b>%{customdata[0]}</b> (%{customdata[1]}) · 면적 %{customdata[2]:,.1f} ha<br>"
-                "<span style='color:#99F6E4'>클릭하여 공원 시설 정보 보기</span><extra>주요 공원</extra>"
-            ),
+            hovertemplate="<b>%{customdata[0]}</b> (%{customdata[1]}) · 면적 %{customdata[2]:,.1f} ha<extra>주요 공원</extra>",
             name="주요 공원",
             showlegend=True,
         ))
@@ -486,7 +482,7 @@ class SeoulParkMapChart(Chart):
         Theme.apply(
             fig,
             "서울시 행정동 봄철 생활인구 증가율 및 주요 공원 분포",
-            "짙은 청록색 실선 테두리 = 공원 보유 동 · 점선 = 자치구 경계 · 상단 필터로 구별 확대 가능",
+            "짙은 청록색 실선 테두리 = 공원 보유 동 · 점선 = 자치구 경계 · 자치구 클릭 또는 상단 필터로 구별 확대",
         )
         fig.update_layout(margin=dict(t=68, l=8, r=8, b=8), legend=dict(x=0.98, y=0.04, yanchor="bottom"))
         return fig
