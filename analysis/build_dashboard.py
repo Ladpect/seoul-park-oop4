@@ -21,7 +21,6 @@ for p in (ANALYSIS_DIR, PROJECT_ROOT / "preprocessing"):
 
 from newdata import ParkMapSource
 from topic1_visualize import (
-    CODE_REMAP,
     PARK_MAP_CSV_PATH,
     Chart,
     DongNameLookup,
@@ -107,16 +106,13 @@ class DashboardBuilder:
     def _build_detail_payload(self) -> dict:
         """분석기(t1, t2)와 공원·지리 저장소 결과를 대시보드용 상세 JSON으로 결합"""
         parks_df = self.park_source.load()
-        parks_df["canon_cd"] = parks_df["dong_cd"].str[:8].map(lambda c: CODE_REMAP.get(c, c))
         parks_df["area_m2"] = pd.to_numeric(parks_df["area_m2"], errors="coerce").fillna(0)
 
         parks_by_dong, parks_by_gu, parks_list = {}, {}, []
         for _, row in parks_df.iterrows():
             fclt = str(row["main_fclt"]) if pd.notna(row["main_fclt"]) else ""
-            dong_cd = row["canon_cd"]
-            raw_rgn = str(row["rgn"]).strip() if pd.notna(row["rgn"]) else ""
-            dong_gu = self.names.dong_to_gu.get(dong_cd, raw_rgn)
-            rgn_ko = raw_rgn if raw_rgn and raw_rgn.lower() != "nan" else dong_gu
+            dong_cd = row["dong_cd"]
+            dong_gu = self.names.dong_to_gu[dong_cd]
             dong_nm_ko = self.names.name(dong_cd)
             addr_ko = str(row["park_addr"]).strip() if pd.notna(row["park_addr"]) else ""
             park_nm_ko = str(row["park_nm"])
@@ -124,10 +120,7 @@ class DashboardBuilder:
             info = {
                 "name": park_nm_ko,
                 "name_en": name_en,
-                "gu": rgn_ko,
-                "gu_en": self.translations.gu_en(rgn_ko),
-                "dong_gu": dong_gu,
-                "dong_gu_en": self.translations.gu_en(dong_gu),
+                "gu": dong_gu,
                 "dong_cd": dong_cd,
                 "dong_nm": dong_nm_ko,
                 "dong_nm_en": self.translations.dong_full_en(dong_cd, dong_gu, dong_nm_ko),
@@ -481,7 +474,7 @@ class DashboardBuilder:
   <div class="container header-inner">
     <div class="header-copy">
       <h1 data-i18n="header.title">서울시 도시공원이 주간 생활인구에 미치는 영향</h1>
-      <p data-i18n="header.desc">서울 424개 행정동(공원 보유 102개 · 미보유 322개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.</p>
+      <p data-i18n="header.desc">서울 424개 행정동(공원 보유 {t1_wknd['n_park']}개 · 미보유 {t1_wknd['n_none']}개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.</p>
     </div>
     <div class="segmented lang-toggle" role="group" aria-label="한국어 / English">
       <button type="button" class="lang-btn active" data-lang="ko" lang="ko" aria-pressed="true" onclick="setLanguage(this.dataset.lang)">한국어</button>
@@ -661,7 +654,7 @@ class DashboardBuilder:
     ko: {{
       'page.title': '서울시 도시공원이 생활인구에 미치는 영향',
       'header.title': '서울시 도시공원이 주간 생활인구에 미치는 영향',
-      'header.desc': '서울 424개 행정동(공원 보유 102개 · 미보유 322개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.',
+      'header.desc': '서울 424개 행정동(공원 보유 {t1_wknd["n_park"]}개 · 미보유 {t1_wknd["n_none"]}개)과 주요 공원 127개소의 4개년 데이터를 결합해 봄철 인구 유입 격차와 세대별 반응도를 검정했습니다.',
       'nav.overview': '서울 한눈에 보기',
       'nav.topic1': '계절별 변동 분석',
       'nav.topic2': '세대별 반응도',
@@ -709,7 +702,7 @@ class DashboardBuilder:
     en: {{
       'page.title': 'Impact of Seoul Urban Parks on Daytime Living Population',
       'header.title': 'Impact of Seoul Urban Parks on Daytime Living Population',
-      'header.desc': 'Analyzing four years of data across 424 Seoul administrative dongs (102 with parks, 322 without) and 127 major parks to examine spring population inflow gaps and age-group responsiveness.',
+      'header.desc': 'Analyzing four years of data across 424 Seoul administrative dongs ({t1_wknd["n_park"]} with parks, {t1_wknd["n_none"]} without) and 127 major parks to examine spring population inflow gaps and age-group responsiveness.',
       'nav.overview': 'Seoul Overview',
       'nav.topic1': 'Seasonal Analysis',
       'nav.topic2': 'Age Group Response',
@@ -786,10 +779,6 @@ class DashboardBuilder:
 
   function parkAddrLabel(p) {{
     return currentLang === 'en' ? (p.addr_en || p.addr) : p.addr;
-  }}
-
-  function parkGuLabel(p) {{
-    return currentLang === 'en' ? (p.gu_en || guLabel(p.gu)) : p.gu;
   }}
 
   function dayTypeLabel(dt) {{
@@ -1411,7 +1400,7 @@ class DashboardBuilder:
         if (!p) return orig;
         return [
           parkNameLabel(p),
-          parkGuLabel(p),
+          guLabel(p.gu),
           orig[2],
           parkAddrLabel(p),
           p.name,
@@ -1462,10 +1451,6 @@ class DashboardBuilder:
     el.style.display = 'block';
     const scrollEl = document.getElementById('overview-sidebar-scroll');
     if (scrollEl) scrollEl.scrollTop = 0;
-  }}
-
-  function getParkGu(park) {{
-    return Object.hasOwn(DETAIL_DATA.gus, park.dong_gu) ? park.dong_gu : park.gu;
   }}
 
   function updateMapView({{ animateZoom = true, keepViewport = false }} = {{}}) {{
@@ -1521,7 +1506,7 @@ class DashboardBuilder:
     const activeParkIdx = [];
     const dimParkIdx = [];
     DETAIL_DATA.parks.forEach((p, i) => {{
-      if (isAll || getParkGu(p) === currentGu) activeParkIdx.push(i);
+      if (isAll || p.gu === currentGu) activeParkIdx.push(i);
       else dimParkIdx.push(i);
     }});
 
@@ -1883,7 +1868,7 @@ class DashboardBuilder:
     if (!p) return;
     inspectorState = {{ type: 'park', id: p.name }};
     const isEn = currentLang === 'en';
-    const targetGu = getParkGu(p);
+    const targetGu = p.gu;
     const targetGuDisp = guLabel(targetGu);
     const dongDisp = isEn ? (p.dong_nm_en || dongFullLabel(p.dong_cd)) : p.dong_nm;
     const addrDisp = parkAddrLabel(p);
@@ -1902,7 +1887,7 @@ class DashboardBuilder:
       <div class="detail-header"><h2 class="detail-title">${{parkNameLabel(p)}}</h2><span class="status-tag has-park">${{p.area_ha.toLocaleString()}} ha</span></div>
       <table class="clean-table" style="margin-top:12px;"><tbody>
         <tr><td>${{isEn ? 'Administrative Dong' : '위치 행정동'}}</td><td class="num"><span class="gu-link" onclick="showDongDetail('${{p.dong_cd}}')">${{dongDisp}}</span></td></tr>
-        <tr><td>${{isEn ? 'Address' : '주소'}}</td><td class="address">${{addrDisp || '-'}}</td></tr>
+        <tr><td>${{isEn ? 'Registered Address' : '등록 주소'}}</td><td class="address">${{addrDisp || '-'}}</td></tr>
       </tbody></table>
       <div class="sub-heading">${{isEn ? 'Key Facilities' : '주요 보유 시설'}}</div>
       <div class="park-item"><div class="park-item-meta" style="color:var(--text-body);line-height:1.55;">${{p.fclt || (isEn ? 'No facility details available.' : '등록된 시설 상세 정보가 없습니다.')}}</div></div>
@@ -1999,7 +1984,7 @@ class DashboardBuilder:
         const found = PARK_BY_NAME[canonicalName] || DETAIL_DATA.parks.find(x => x.name === canonicalName || x.name_en === canonicalName);
         if (found) {{
           document.querySelectorAll('.choroplethlocation.is-selected').forEach(p => p.classList.remove('is-selected'));
-          const targetGu = getParkGu(found);
+          const targetGu = found.gu;
           if (targetGu !== currentGu && Object.hasOwn(DETAIL_DATA.gus, targetGu)) {{
             selectGu(targetGu, {{ showSidebar: false }});
           }}

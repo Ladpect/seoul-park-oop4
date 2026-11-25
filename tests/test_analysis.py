@@ -11,7 +11,15 @@ if str(PROJECT_ROOT / "analysis") not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT / "analysis"))
 
 from build_dashboard import DashboardBuilder, TranslationCatalog
-from topic1_visualize import BaseAnalyzer, PARK_MAP_CSV_PATH, SEOUL_GEOJSON_PATH, SeasonalChangeAnalyzer
+from newdata import ParkMapper, ParkMapSource
+from topic1_visualize import (
+    BaseAnalyzer,
+    DongNameLookup,
+    PARK_MAP_CSV_PATH,
+    SEOUL_GEOJSON_PATH,
+    SeasonalChangeAnalyzer,
+    SeoulParkMapChart,
+)
 from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer
 
 
@@ -149,7 +157,7 @@ class TestAnalyzers(unittest.TestCase):
         ]
         parks_df = pd.DataFrame({
             "park_nm": ["서울숲"],
-            "rgn": ["성동구"],
+            "rgn": ["광진구"],
             "dong_cd": ["11200650"],
             "area_m2": [1156498],
             "park_addr": ["성동구 뚝섬로 273"],
@@ -176,7 +184,9 @@ class TestAnalyzers(unittest.TestCase):
         park = payload["parks"][0]
         self.assertEqual(park["name_en"], "Seoul Forest")
         self.assertIn("Ttukseom-ro", park["addr_en"])
-        self.assertEqual(park["gu_en"], "Seongdong-gu")
+        self.assertEqual(park["gu"], "성동구")
+        self.assertIn(park, payload["gus"]["성동구"]["parks"])
+        self.assertEqual(payload["gus"]["성동구"]["name_en"], "Seongdong-gu")
         self.assertEqual(park["dong_nm_en"], "Seongsu 1-ga 1-dong, Seongdong-gu")
         self.assertEqual(park["fclt"], "산책로")
 
@@ -184,6 +194,29 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(dong["gu_en"], "Seongdong-gu")
         self.assertEqual(dong["short_en"], "Seongsu 1-ga 1-dong")
         self.assertEqual(dong["name_en"], "Seongsu 1-ga 1-dong, Seongdong-gu")
+
+    def test_park_mapping_matches_population_groups_and_map(self):
+        names = DongNameLookup()
+        park_mapper = ParkMapper(ParkMapSource(PARK_MAP_CSV_PATH))
+        for filename in ("daytime_weekend_pop.csv", "daytime_age_pop.csv"):
+            with self.subTest(filename=filename):
+                path = SEOUL_GEOJSON_PATH.parent / filename
+                population = pd.read_csv(path, dtype={"dong_cd": str})
+                excluded = park_mapper.restrict_to(set(population["dong_cd"]))
+                self.assertTrue(excluded.empty)
+                self.assertTrue(population["has_park"].equals(park_mapper.has_park(population["dong_cd"])))
+
+        season = SeasonalChangeAnalyzer(SEOUL_GEOJSON_PATH.parent / "daytime_weekend_pop.csv", names)
+        marker_trace = next(
+            trace for trace in SeoulParkMapChart(season, names).figure.data
+            if trace.type == "scattergeo" and trace.mode == "markers"
+        )
+        markers = {row[0]: (row[1], lon, lat)
+                   for row, lon, lat in zip(marker_trace.customdata, marker_trace.lon, marker_trace.lat)}
+        self.assertEqual(markers["답십리근린공원"], ("동대문구", 127.0638172, 37.57332011))
+        self.assertEqual(markers["남산공원"][0], "용산구")
+        self.assertIn("11230610", park_mapper.park_dongs)
+        self.assertNotIn("11680610", park_mapper.park_dongs)
 
     def test_i18n_catalog_completeness_and_no_hangul(self):
         catalog_path = PROJECT_ROOT / "analysis" / "i18n_en.json"

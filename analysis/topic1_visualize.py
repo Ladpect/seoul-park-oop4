@@ -12,6 +12,7 @@
    - YearlyTrendChart: 2023~2026년 4개년 연속 공원 동 우세를 확인하는 연도별 추이선 그래프.
 """
 import json
+import sys
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -23,6 +24,11 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT / "preprocessing") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "preprocessing"))
+
+from newdata import CODE_REMAP, ParkMapSource
+
 SEOUL_GEOJSON_PATH = PROJECT_ROOT / "data" / "processed" / "seoul_dongs.geojson"
 SEOUL_GU_GEOJSON_PATH = PROJECT_ROOT / "data" / "processed" / "seoul_gus.geojson"
 RAW_GEOJSON_PATH = PROJECT_ROOT / "data" / "raw" / "HangJeongDong_ver20260701.geojson"
@@ -32,14 +38,6 @@ WEEKEND, WEEKDAY, ALL_DAYS = "주말·공휴일", "평일", "전체"
 DAY_TYPES = [WEEKEND, WEEKDAY, ALL_DAYS]
 PARK_LABEL = {True: "공원 보유", False: "공원 미보유"}
 
-CODE_REMAP = {
-    "11230515": "11230536", "11230533": "11230536",
-    "11305595": "11305590", "11305603": "11305600", "11305608": "11305606",
-    "11305615": "11305610", "11305625": "11305620", "11305635": "11305630",
-    "11680675": "11680740",
-    "11740525": "11740520", "11740526": "11740520",
-    "11530800": "11530780",
-}
 MERGED_DONG_NAMES = {
     "11230536": "동대문구 용신동",
     "11740520": "강동구 상일동",
@@ -397,13 +395,8 @@ class SeoulParkMapChart(Chart):
         wk["park_status"] = wk["has_park"].map(PARK_LABEL)
         park_cds = set(wk.loc[wk["has_park"], "dong_cd"])
 
-        parks = pd.read_csv(self.park_csv, dtype={"dong_cd": str})
-        parks["canon_cd"] = parks["dong_cd"].astype(str).str[:8].map(lambda c: CODE_REMAP.get(c, c))
-        rgn_series = parks["rgn"].astype(str).str.strip()
-        parks["rgn_clean"] = parks["rgn"].where(
-            parks["rgn"].notna() & (rgn_series != "") & (rgn_series.str.lower() != "nan"),
-            parks["canon_cd"].map(self.names.dong_to_gu),
-        ).fillna("")
+        parks = ParkMapSource(self.park_csv).load()
+        parks["mapped_gu"] = parks["dong_cd"].map(self.names.dong_to_gu.__getitem__)
         parks["area_m2"] = pd.to_numeric(parks["area_m2"], errors="coerce").fillna(10000)
         parks["area_ha"] = parks["area_m2"] / 10000.0
         sizes = np.clip(np.log1p(parks["area_m2"]) * 0.9 - 2.5, 4.5, 11.5)
@@ -473,7 +466,7 @@ class SeoulParkMapChart(Chart):
             meta="park",
             mode="markers",
             marker=dict(size=sizes.tolist(), color="#111827", opacity=0.85, line=dict(color="#FFFFFF", width=0.9)),
-            customdata=np.stack([parks["park_nm"], parks["rgn_clean"], parks["area_ha"], parks["park_addr"].fillna(""), parks["park_nm"]], axis=-1).tolist(),
+            customdata=np.stack([parks["park_nm"], parks["mapped_gu"], parks["area_ha"], parks["park_addr"].fillna(""), parks["park_nm"]], axis=-1).tolist(),
             hovertemplate="<b>%{customdata[0]}</b> (%{customdata[1]}) · 면적 %{customdata[2]:,.1f} ha<extra>주요 공원</extra>",
             name="주요 공원",
             showlegend=True,

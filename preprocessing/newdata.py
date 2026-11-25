@@ -22,6 +22,16 @@ import pandas as pd
 # ──────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# 최신 행정동 경계를 생활인구 분석 단위에 대응시킨다.
+CODE_REMAP = {
+    "11230515": "11230536", "11230533": "11230536",
+    "11305595": "11305590", "11305603": "11305600", "11305608": "11305606",
+    "11305615": "11305610", "11305625": "11305620", "11305635": "11305630",
+    "11680675": "11680740",
+    "11740525": "11740520", "11740526": "11740520",
+    "11530800": "11530780",
+}
+
 
 @dataclass
 class PreprocessConfig:
@@ -127,7 +137,7 @@ class LivingPopSource(MonthlyPopSource):
 
 
 class ParkMapSource(CsvSource):
-    """공원-행정동 매핑 CSV (서울시 주요 공원 현황 기반)"""
+    """공원-행정동 매핑 CSV를 생활인구 분석 단위로 읽는다."""
 
     AREA_CORRECTIONS = {
         "북한산국립공원": 77_334_000.0,   # 원본 7.7334e10 (단위 1,000배 오류)
@@ -135,7 +145,7 @@ class ParkMapSource(CsvSource):
 
     def load(self) -> pd.DataFrame:
         df = pd.read_csv(self.fpath, encoding=self.encoding, dtype={"dong_cd": str})
-        df["dong_cd"] = self.normalize_dong_cd(df["dong_cd"])
+        df["dong_cd"] = self.normalize_dong_cd(df["dong_cd"]).replace(CODE_REMAP)
         name = df["park_nm"].astype(str).str.strip()
         for park_nm, area in self.AREA_CORRECTIONS.items():
             df.loc[name == park_nm, "area_m2"] = area
