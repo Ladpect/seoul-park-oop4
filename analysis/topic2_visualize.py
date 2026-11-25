@@ -88,9 +88,11 @@ class AgeRateBarChart(Chart):
         fig.update_layout(barmode="group", bargap=0.28, height=480,
                           yaxis=dict(title="1월 대비 5월 평균 증가율 (%)", ticksuffix="%", zeroline=False, range=[-8, 10]),
                           xaxis=dict(title=""))
+        gaps = pooled.set_index("age_group")["diff"]
         return Theme.apply(
             fig, "세대별 1월 → 5월 생활인구 증가율 비교 (주말·공휴일 낮 10~17시 기준)",
-            "4개년(2023~2026) 평균 · 유아동(+4.08%p)과 청년층(+2.80%p)에서 공원 유인 효과가 가장 크게 나타남",
+            f"4개년(2023~2026) 평균 · 공원 보유·미보유 행정동 간 증가율 차이 "
+            f"유아동({gaps['유아동 (0~9세)']:+.2f}%p), 청년층({gaps['청년층 (20~39세)']:+.2f}%p)",
         )
 
 
