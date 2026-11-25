@@ -28,6 +28,7 @@ from topic1_visualize import (
     SeasonalChangeAnalyzer,
     SeoulParkMapChart,
     YearlyTrendChart,
+    map_park_gu,
 )
 from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer, AgeRateBarChart, AgeYearlyTrendChart
 
@@ -107,12 +108,13 @@ class DashboardBuilder:
         """분석기(t1, t2)와 공원·지리 저장소 결과를 대시보드용 상세 JSON으로 결합"""
         parks_df = self.park_source.load()
         parks_df["area_m2"] = pd.to_numeric(parks_df["area_m2"], errors="coerce").fillna(0)
+        parks_df["mapped_gu"] = map_park_gu(parks_df, self.names.dong_to_gu)
 
         parks_by_dong, parks_by_gu, parks_list = {}, {}, []
         for _, row in parks_df.iterrows():
             fclt = str(row["main_fclt"]) if pd.notna(row["main_fclt"]) else ""
             dong_cd = row["dong_cd"]
-            dong_gu = self.names.dong_to_gu[dong_cd]
+            dong_gu = row["mapped_gu"]
             dong_nm_ko = self.names.name(dong_cd)
             addr_ko = str(row["park_addr"]).strip() if pd.notna(row["park_addr"]) else ""
             park_nm_ko = str(row["park_nm"])

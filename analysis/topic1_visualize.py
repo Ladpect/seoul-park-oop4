@@ -73,6 +73,19 @@ class Theme:
         return fig
 
 
+def map_park_gu(parks: pd.DataFrame, dong_to_gu: dict[str, str]) -> pd.Series:
+    """공원 행정동코드를 자치구명으로 변환하고, 경계 데이터에 없는 코드는 공원명과 함께 보고"""
+    gu = parks["dong_cd"].map(dong_to_gu)
+    unknown = parks.loc[gu.isna()]
+    if not unknown.empty:
+        listing = ", ".join(f"{r.park_nm}({r.dong_cd})" for r in unknown.itertuples())
+        raise ValueError(
+            f"행정동 경계 데이터에 없는 공원 행정동코드 {len(unknown)}건: {listing} "
+            "— park_dong_map.csv 또는 CODE_REMAP을 확인하세요."
+        )
+    return gu
+
+
 class NameLookup(Protocol):
     """행정동 코드 → 이름 조회 전용 경량 인터페이스 (ISP)"""
 
@@ -396,7 +409,7 @@ class SeoulParkMapChart(Chart):
         park_cds = set(wk.loc[wk["has_park"], "dong_cd"])
 
         parks = ParkMapSource(self.park_csv).load()
-        parks["mapped_gu"] = parks["dong_cd"].map(self.names.dong_to_gu.__getitem__)
+        parks["mapped_gu"] = map_park_gu(parks, self.names.dong_to_gu)
         parks["area_m2"] = pd.to_numeric(parks["area_m2"], errors="coerce").fillna(10000)
         parks["area_ha"] = parks["area_m2"] / 10000.0
         sizes = np.clip(np.log1p(parks["area_m2"]) * 0.9 - 2.5, 4.5, 11.5)

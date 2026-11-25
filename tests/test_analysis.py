@@ -19,6 +19,7 @@ from topic1_visualize import (
     SEOUL_GEOJSON_PATH,
     SeasonalChangeAnalyzer,
     SeoulParkMapChart,
+    map_park_gu,
 )
 from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer
 
@@ -194,6 +195,16 @@ class TestAnalyzers(unittest.TestCase):
         self.assertEqual(dong["gu_en"], "Seongdong-gu")
         self.assertEqual(dong["short_en"], "Seongsu 1-ga 1-dong")
         self.assertEqual(dong["name_en"], "Seongsu 1-ga 1-dong, Seongdong-gu")
+
+    def test_unknown_park_dong_code_reports_park_name(self):
+        names = _FakeGeoNameLookup({"11200650": "성동구 성수1가1동", "11110515": "종로구 청운효자동"})
+        parks_df = pd.DataFrame({
+            "park_nm": ["서울숲", "개편공원"],
+            "dong_cd": ["11200650", "99999999"],
+        })
+        with self.assertRaisesRegex(ValueError, r"개편공원\(99999999\)"):
+            map_park_gu(parks_df, names.dong_to_gu)
+        self.assertEqual(map_park_gu(parks_df.iloc[:1], names.dong_to_gu).tolist(), ["성동구"])
 
     def test_park_mapping_matches_population_groups_and_map(self):
         names = DongNameLookup()
