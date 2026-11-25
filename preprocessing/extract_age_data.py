@@ -62,9 +62,9 @@ class AgeLivingPopSource(MonthlyPopSource):
         df["senior"] = df[15] + df[16] + df[17] + df[29] + df[30] + df[31]
         df["total"] = df[3]
 
-        return df[[0, 1, 2, "kids", "teens", "youth", "middle", "senior", "total"]].rename(
-            columns={0: "date", 1: "hour", 2: "dong_cd"}
-        )
+        age_cols = ["kids", "teens", "youth", "middle", "senior", "total"]
+        df = df[[0, 1, 2, *age_cols]].rename(columns={0: "date", 1: "hour", 2: "dong_cd"})
+        return self.remap_dongs(df, age_cols)
 
 
 class AgePopPreprocessor(DaytimePopPreprocessor):
