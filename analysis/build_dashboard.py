@@ -30,9 +30,33 @@ from topic1_visualize import (
     YearlyTrendChart,
     map_park_gu,
 )
-from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer, AgeRateBarChart, AgeYearlyTrendChart
+from topic2_visualize import (
+    AGE_ORDER,
+    AGE_TOTAL,
+    AgeGroupAnalyzer,
+    AgeRateBarChart,
+    AgeYearlyTrendChart,
+    age_gap_subtitle,
+    age_short,
+    top_age_gaps,
+)
 
 I18N_EN_PATH = ANALYSIS_DIR / "i18n_en.json"
+
+AGE_FULL_EN = {
+    "유아동 (0~9세)": "Children (0–9)",
+    "청소년 (10~19세)": "Teens (10–19)",
+    "청년층 (20~39세)": "Young Adults (20–39)",
+    "중장년 (40~59세)": "Mid-Age (40–59)",
+    "고령층 (60세 이상)": "Seniors (60+)",
+    AGE_TOTAL: "All Ages",
+}
+AGE_SHORT_EN = {age_short(ko): age_short(en) for ko, en in AGE_FULL_EN.items() if ko != AGE_TOTAL}
+
+
+def compact_age_label(label: str) -> str:
+    """'유아동 (0~9세)' → '유아동 0–9세', 'Children (0–9)' → 'Children 0–9'"""
+    return label.replace(" (", " ").rstrip(")").replace("~", "–")
 
 
 class TranslationCatalog:
@@ -226,8 +250,29 @@ class DashboardBuilder:
 
         t2_pooled = self.t2.summary().query("period == '4개년'")
         t2_ranked = t2_pooled[t2_pooled["age_group"] != "전체 인구"].sort_values("diff", ascending=False)
-        kids = t2_pooled[t2_pooled["age_group"] == "유아동 (0~9세)"].iloc[0]
-        young_adults = t2_pooled[t2_pooled["age_group"] == "청년층 (20~39세)"].iloc[0]
+        top_ages = top_age_gaps(t2_pooled)
+        top_age = top_ages.iloc[0]
+        top_age_diff = f"{top_age['diff']:+.2f}%p"
+        top_age_ko = f"{compact_age_label(top_age['age_group'])} ({top_age_diff})"
+        top_age_en = f"{compact_age_label(AGE_FULL_EN[top_age['age_group']])} ({top_age_diff})"
+        top_names_ko = "·".join(age_short(g) for g in top_ages["age_group"])
+        top_names_en = " and ".join(AGE_SHORT_EN[age_short(g)] for g in top_ages["age_group"])
+        all_ages_ahead = bool((t2_ranked["diff"] > 0).all())
+        t2_desc_ko = (
+            f"주말 낮(10–17시) 기준 {top_names_ko}에서 공원 보유·미보유 동 간 봄철 증가율 격차가 가장 컸으며, "
+            + ("전 세대에서 공원 보유 동의 증가율이 앞섰습니다." if all_ages_ahead
+               else "일부 세대에서는 미보유 동의 증가율이 더 높았습니다.")
+        )
+        t2_desc_en = (
+            f"During weekend daytime hours (10:00–17:00), {top_names_en} showed the largest park vs. non-park gaps "
+            "in spring growth, "
+            + ("with park dongs outperforming across every age group." if all_ages_ahead
+               else "though non-park dongs grew faster for some age groups.")
+        )
+        age_bar_subtitle_ko = age_gap_subtitle(t2_pooled)
+        age_bar_subtitle_en = "4-year avg (2023–2026) · Largest park vs. non-park growth gaps: " + ", ".join(
+            f"{AGE_SHORT_EN[age_short(r.age_group)]} ({r.diff:+.2f}%p)" for r in top_ages.itertuples()
+        )
 
         t2_table_rows = "\n".join(
             f"<tr><td data-age-key=\"{row['age_group']}\">{row['age_group']}</td>"
@@ -512,7 +557,7 @@ class DashboardBuilder:
                 <tr><td data-i18n="overview.stat_dongs_label">분석 행정동</td><td class="num" data-i18n="overview.stat_dongs_val">424개 동 (25개 자치구)</td></tr>
                 <tr><td data-i18n="overview.stat_parks_label">표시 공원 수</td><td class="num" data-i18n="overview.stat_parks_val">127개 주요 공원</td></tr>
                 <tr><td data-i18n="overview.stat_hours_label">분석 시간대</td><td class="num" data-i18n="overview.stat_hours_val">주말·공휴일 낮 10–17시</td></tr>
-                <tr><td data-i18n="overview.stat_age_label">최대 수혜 세대</td><td class="num accent" data-i18n="overview.stat_age_val">유아동 0–9세 ({kids['diff']:+.2f}%p)</td></tr>
+                <tr><td data-i18n="overview.stat_age_label">최대 수혜 세대</td><td class="num accent" data-i18n="overview.stat_age_val">{top_age_ko}</td></tr>
               </tbody>
             </table>
 
@@ -592,9 +637,9 @@ class DashboardBuilder:
 
       <div class="panel">
         <div class="section-kicker" data-i18n="topic2.kicker">주제 2 · 세대별 공원 효과 순위</div>
-        <div class="hero-stat">{kids['diff']:+.2f}%p</div>
+        <div class="hero-stat">{top_age_diff}</div>
         <p class="hero-desc" data-i18n="topic2.hero_desc">
-          주말 낮(10–17시) 기준 유아동 동반 가족과 청년층이 봄철 공원 유입을 주도하며, 전 세대에서 공원 보유 동의 증가율이 앞섰습니다.
+          {t2_desc_ko}
         </p>
 
         <table class="clean-table">
@@ -669,7 +714,7 @@ class DashboardBuilder:
       'overview.stat_hours_label': '분석 시간대',
       'overview.stat_hours_val': '주말·공휴일 낮 10–17시',
       'overview.stat_age_label': '최대 수혜 세대',
-      'overview.stat_age_val': '유아동 0–9세 ({kids["diff"]:+.2f}%p)',
+      'overview.stat_age_val': '{top_age_ko}',
       'overview.top5_title': '봄철 증가율 상위 공원 보유 동 TOP 5',
       'table.dong': '행정동',
       'table.jan_may': '1월 → 5월',
@@ -688,7 +733,7 @@ class DashboardBuilder:
       'topic1.hero_stat': '4 / 4개년',
       'topic1.hero_desc': '2023년부터 2026년까지 매년 공원 보유 행정동의 봄철 생활인구 증가율이 일관되게 높았습니다.',
       'topic2.kicker': '주제 2 · 세대별 공원 효과 순위',
-      'topic2.hero_desc': '주말 낮(10–17시) 기준 유아동 동반 가족과 청년층이 봄철 공원 유입을 주도하며, 전 세대에서 공원 보유 동의 증가율이 앞섰습니다.',
+      'topic2.hero_desc': '{t2_desc_ko}',
       'footer.text': '서울시 25개 자치구 424개의 행정동과 127개 주요 공원의 4개년(2023~2026년) 생활인구 분석 데이터 기준입니다.',
       dayTypes: {{ '주말·공휴일': '주말·공휴일', '평일': '평일', '전체': '전체' }},
       ageShort: {{ '유아동': '유아동', '청소년': '청소년', '청년층': '청년층', '중장년': '중장년', '고령층': '고령층' }},
@@ -717,7 +762,7 @@ class DashboardBuilder:
       'overview.stat_hours_label': 'Analysis Window',
       'overview.stat_hours_val': 'Weekends/Holidays 10–17h',
       'overview.stat_age_label': 'Top Beneficiary',
-      'overview.stat_age_val': 'Children 0–9 ({kids["diff"]:+.2f}%p)',
+      'overview.stat_age_val': '{top_age_en}',
       'overview.top5_title': 'Top 5 Park Dongs by Spring Growth',
       'table.dong': 'Dong',
       'table.jan_may': 'Jan → May',
@@ -736,18 +781,11 @@ class DashboardBuilder:
       'topic1.hero_stat': '4 / 4 Years',
       'topic1.hero_desc': 'Every year from 2023 through 2026, dongs with parks consistently recorded higher spring living population growth.',
       'topic2.kicker': 'Topic 2 · Park Effect by Age Group',
-      'topic2.hero_desc': 'During weekend daytime hours (10:00–17:00), families with young children and young adults led spring park inflows, with park dongs outperforming across every age group.',
+      'topic2.hero_desc': '{t2_desc_en}',
       'footer.text': 'Based on four-year (2023–2026) living population analytics covering 424 administrative dongs across 25 Seoul autonomous districts and 127 major urban parks.',
       dayTypes: {{ '주말·공휴일': 'Weekends & Holidays', '평일': 'Weekdays', '전체': 'All Days' }},
-      ageShort: {{ '유아동': 'Children', '청소년': 'Teens', '청년층': 'Young Adults', '중장년': 'Mid-Age', '고령층': 'Seniors' }},
-      ageFull: {{
-        '유아동 (0~9세)': 'Children (0–9)',
-        '청소년 (10~19세)': 'Teens (10–19)',
-        '청년층 (20~39세)': 'Young Adults (20–39)',
-        '중장년 (40~59세)': 'Mid-Age (40–59)',
-        '고령층 (60세 이상)': 'Seniors (60+)',
-        '전체 인구': 'All Ages',
-      }},
+      ageShort: {json.dumps(AGE_SHORT_EN, ensure_ascii=False)},
+      ageFull: {json.dumps(AGE_FULL_EN, ensure_ascii=False)},
     }},
   }};
 
@@ -891,8 +929,8 @@ class DashboardBuilder:
         }},
         {{
           'title.text': isEn
-            ? makeChartTitle('Jan → May Living Population Growth by Age Group (Weekend Daytime 10:00–17:00)', '4-year avg (2023–2026) · Park attraction effect is strongest among Children ({kids["diff"]:+.2f}%p) and Young Adults ({young_adults["diff"]:+.2f}%p)')
-            : makeChartTitle('세대별 1월 → 5월 생활인구 증가율 비교 (주말·공휴일 낮 10~17시 기준)', '4개년(2023~2026) 평균 · 유아동({kids["diff"]:+.2f}%p)과 청년층({young_adults["diff"]:+.2f}%p)에서 공원 유인 효과가 가장 크게 나타남'),
+            ? makeChartTitle('Jan → May Living Population Growth by Age Group (Weekend Daytime 10:00–17:00)', '{age_bar_subtitle_en}')
+            : makeChartTitle('세대별 1월 → 5월 생활인구 증가율 비교 (주말·공휴일 낮 10~17시 기준)', '{age_bar_subtitle_ko}'),
           'yaxis.title.text': isEn ? 'Avg Growth vs. Jan (%)' : '1월 대비 5월 평균 증가율 (%)',
           'xaxis.tickmode': 'array',
           'xaxis.tickvals': AGE_ORDER_KEYS,

@@ -28,6 +28,22 @@ AGE_ORDER = [
     "고령층 (60세 이상)",
     "전체 인구",
 ]
+AGE_TOTAL = "전체 인구"
+
+
+def age_short(age_group: str) -> str:
+    """'유아동 (0~9세)' → '유아동'"""
+    return age_group.split(" (")[0]
+
+
+def top_age_gaps(pooled: pd.DataFrame, n: int = 2) -> pd.DataFrame:
+    """'전체 인구'를 제외하고 공원 보유·미보유 증가율 격차(diff)가 큰 순으로 상위 n개 세대"""
+    return pooled[pooled["age_group"] != AGE_TOTAL].nlargest(n, "diff")
+
+
+def age_gap_subtitle(pooled: pd.DataFrame) -> str:
+    gaps = ", ".join(f"{age_short(r.age_group)}({r.diff:+.2f}%p)" for r in top_age_gaps(pooled).itertuples())
+    return f"4개년(2023~2026) 평균 · 공원 보유·미보유 행정동 간 증가율 차이 상위 {gaps}"
 
 
 class AgeGroupAnalyzer(BaseAnalyzer):
@@ -88,11 +104,9 @@ class AgeRateBarChart(Chart):
         fig.update_layout(barmode="group", bargap=0.28, height=480,
                           yaxis=dict(title="1월 대비 5월 평균 증가율 (%)", ticksuffix="%", zeroline=False, range=[-8, 10]),
                           xaxis=dict(title=""))
-        gaps = pooled.set_index("age_group")["diff"]
         return Theme.apply(
             fig, "세대별 1월 → 5월 생활인구 증가율 비교 (주말·공휴일 낮 10~17시 기준)",
-            f"4개년(2023~2026) 평균 · 공원 보유·미보유 행정동 간 증가율 차이 "
-            f"유아동({gaps['유아동 (0~9세)']:+.2f}%p), 청년층({gaps['청년층 (20~39세)']:+.2f}%p)",
+            age_gap_subtitle(pooled),
         )
 
 
