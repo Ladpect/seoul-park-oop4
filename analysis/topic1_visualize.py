@@ -452,7 +452,7 @@ class SeoulParkMapChart(Chart):
             showlegend=True,
         ))
 
-        # Trace 2 & 3: 공원 보유 행정동(102개) 강조 테두리 (흰색 외곽선 + 짙은 청록색 실선)
+        # Trace 2 & 3: 공원 보유 행정동 강조 테두리 (흰색 외곽선 + 짙은 청록색 실선)
         pk_lons, pk_lats = self._park_dong_border_lines(park_cds)
         fig.add_trace(go.Scattergeo(
             lon=pk_lons,
