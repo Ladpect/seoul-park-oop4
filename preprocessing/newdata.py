@@ -22,6 +22,15 @@ import pandas as pd
 # ──────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+CODE_REMAP = {
+    "11230515": "11230536", "11230533": "11230536",
+    "11305595": "11305590", "11305603": "11305600", "11305608": "11305606",
+    "11305615": "11305610", "11305625": "11305620", "11305635": "11305630",
+    "11680675": "11680740",
+    "11740525": "11740520", "11740526": "11740520",
+    "11530800": "11530780",
+}
+
 
 @dataclass
 class PreprocessConfig:
@@ -135,7 +144,7 @@ class ParkMapSource(CsvSource):
 
     def load(self) -> pd.DataFrame:
         df = pd.read_csv(self.fpath, encoding=self.encoding, dtype={"dong_cd": str})
-        df["dong_cd"] = self.normalize_dong_cd(df["dong_cd"])
+        df["dong_cd"] = self.normalize_dong_cd(df["dong_cd"]).replace(CODE_REMAP)
         name = df["park_nm"].astype(str).str.strip()
         for park_nm, area in self.AREA_CORRECTIONS.items():
             df.loc[name == park_nm, "area_m2"] = area
