@@ -16,7 +16,6 @@ import sys
 from abc import ABC, abstractmethod
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import Protocol
 
 import numpy as np
 import pandas as pd
@@ -86,14 +85,15 @@ def map_park_gu(parks: pd.DataFrame, dong_to_gu: dict[str, str]) -> pd.Series:
     return gu
 
 
-class NameLookup(Protocol):
-    """행정동 코드 → 이름 조회 전용 경량 인터페이스 (ISP)"""
+class NameLookup(ABC):
+    """행정동 코드 → 이름 조회 전용 경량 추상 클래스 (ISP)"""
 
+    @abstractmethod
     def name(self, dong_cd: str) -> str:
         ...
 
 
-class DongNameLookup:
+class DongNameLookup(NameLookup):
     """서울 424개 행정동 · 25개 자치구 경량 GeoJSON 및 행정동명('구 동') 조회"""
 
     def __init__(self, geojson_path: Path = SEOUL_GEOJSON_PATH):
