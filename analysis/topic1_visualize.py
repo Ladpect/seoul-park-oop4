@@ -24,12 +24,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT / "preprocessing") not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT / "preprocessing"))
 
-PREPROCESSING_DIR = PROJECT_ROOT / "preprocessing"
-if str(PREPROCESSING_DIR) not in sys.path:
-    sys.path.insert(0, str(PREPROCESSING_DIR))
-
-from newdata import CODE_REMAP
+from newdata import CODE_REMAP, ParkMapSource
 
 SEOUL_GEOJSON_PATH = PROJECT_ROOT / "data" / "processed" / "seoul_dongs.geojson"
 SEOUL_GU_GEOJSON_PATH = PROJECT_ROOT / "data" / "processed" / "seoul_gus.geojson"
@@ -73,6 +71,19 @@ class Theme:
         fig.update_xaxes(showgrid=False, linecolor="#E5E7EB", tickfont=dict(color="#6B7280"))
         fig.update_yaxes(gridcolor="#F3F4F6", zerolinecolor="#E5E7EB", tickfont=dict(color="#6B7280"))
         return fig
+
+
+def map_park_gu(parks: pd.DataFrame, dong_to_gu: dict[str, str]) -> pd.Series:
+    """공원 행정동코드를 자치구명으로 변환하고, 경계 데이터에 없는 코드는 공원명과 함께 보고"""
+    gu = parks["dong_cd"].map(dong_to_gu)
+    unknown = parks.loc[gu.isna()]
+    if not unknown.empty:
+        listing = ", ".join(f"{r.park_nm}({r.dong_cd})" for r in unknown.itertuples())
+        raise ValueError(
+            f"행정동 경계 데이터에 없는 공원 행정동코드 {len(unknown)}건: {listing} "
+            "— park_dong_map.csv 또는 CODE_REMAP을 확인하세요."
+        )
+    return gu
 
 
 class NameLookup(Protocol):
@@ -397,13 +408,8 @@ class SeoulParkMapChart(Chart):
         wk["park_status"] = wk["has_park"].map(PARK_LABEL)
         park_cds = set(wk.loc[wk["has_park"], "dong_cd"])
 
-        parks = pd.read_csv(self.park_csv, dtype={"dong_cd": str})
-        parks["canon_cd"] = parks["dong_cd"].astype(str).str[:8].map(lambda c: CODE_REMAP.get(c, c))
-        rgn_series = parks["rgn"].astype(str).str.strip()
-        parks["rgn_clean"] = parks["rgn"].where(
-            parks["rgn"].notna() & (rgn_series != "") & (rgn_series.str.lower() != "nan"),
-            parks["canon_cd"].map(self.names.dong_to_gu),
-        ).fillna("")
+        parks = ParkMapSource(self.park_csv).load()
+        parks["mapped_gu"] = map_park_gu(parks, self.names.dong_to_gu)
         parks["area_m2"] = pd.to_numeric(parks["area_m2"], errors="coerce").fillna(10000)
         parks["area_ha"] = parks["area_m2"] / 10000.0
         sizes = np.clip(np.log1p(parks["area_m2"]) * 0.9 - 2.5, 4.5, 11.5)
@@ -446,7 +452,7 @@ class SeoulParkMapChart(Chart):
             showlegend=True,
         ))
 
-        # Trace 2 & 3: 공원 보유 행정동(102개) 강조 테두리 (흰색 외곽선 + 짙은 청록색 실선)
+        # Trace 2 & 3: 공원 보유 행정동 강조 테두리 (흰색 외곽선 + 짙은 청록색 실선)
         pk_lons, pk_lats = self._park_dong_border_lines(park_cds)
         fig.add_trace(go.Scattergeo(
             lon=pk_lons,
@@ -473,7 +479,7 @@ class SeoulParkMapChart(Chart):
             meta="park",
             mode="markers",
             marker=dict(size=sizes.tolist(), color="#111827", opacity=0.85, line=dict(color="#FFFFFF", width=0.9)),
-            customdata=np.stack([parks["park_nm"], parks["rgn_clean"], parks["area_ha"], parks["park_addr"].fillna(""), parks["park_nm"]], axis=-1).tolist(),
+            customdata=np.stack([parks["park_nm"], parks["mapped_gu"], parks["area_ha"], parks["park_addr"].fillna(""), parks["park_nm"]], axis=-1).tolist(),
             hovertemplate="<b>%{customdata[0]}</b> (%{customdata[1]}) · 면적 %{customdata[2]:,.1f} ha<extra>주요 공원</extra>",
             name="주요 공원",
             showlegend=True,

@@ -8,7 +8,7 @@
 
 | 파일 / 폴더 | 파일 내용 (What is inside) | 역할 및 기능 (Role & Function) |
 | :--- | :--- | :--- |
-| **`park_dong_map.csv`** | 서울시 127개 주요 공원 정보 (일련번호, 공원명, 자치구, 8자리 행정동 코드, 면적, 좌표, 주요시설, 주소) | 서울시 424개 행정동 중 공원 보유 행정동(102개, `has_park=True`)과 미보유(322개) 식별 및 지도 마커 표시 기준 테이블 |
+| **`park_dong_map.csv`** | 서울시 127개 주요 공원 정보 (일련번호, 공원명, 자치구, 8자리 행정동 코드, 면적, 좌표, 주요시설, 주소) | 서울시 424개 행정동 중 공원 보유 행정동(107개, `has_park=True`)과 미보유(317개) 식별 및 지도 마커 표시 기준 테이블. [매핑 검토 결과](park_mapping_audit.md) |
 | **`HangJeongDong_ver20260701.geojson`** | 대한민국 행정동 지리 경계 다각형 좌표 및 행정동 코드(8자리)·명칭 맵핑 GeoJSON ([vuski/admdongkor](https://github.com/vuski/admdongkor)) | 서울 전용 경량 GeoJSON(`seoul_dongs.geojson`) 추출의 원천 지리 데이터 |
 | **`LPD/`** *(로컬 보관)* | 서울시 생활인구 월별 원천 CSV 파일 (2022.07~2026.07 총 49개 보관, 분석에는 4개년 1·5월 8개 파일 사용) | 전처리 파이프라인(`preprocessing/newdata.py`, `extract_age_data.py`)의 원천 입력 빅데이터 (대용량으로 Git 추적 제외) |
 

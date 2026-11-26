@@ -22,6 +22,7 @@ import pandas as pd
 # ──────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# 최신 행정동 경계를 생활인구 분석 단위에 대응시킨다.
 CODE_REMAP = {
     "11230515": "11230536", "11230533": "11230536",
     "11305595": "11305590", "11305603": "11305600", "11305608": "11305606",
@@ -122,6 +123,15 @@ class MonthlyPopSource(CsvSource, ABC):
             dtype=str,
         )
 
+    @staticmethod
+    def remap_dongs(df: pd.DataFrame, value_cols: list) -> pd.DataFrame:
+        """최신 경계 코드를 분석 단위(CODE_REMAP)로 바꾸고, 하나로 합쳐진 행정동은 시간대별 인구를 합산"""
+        remapped = df["dong_cd"].isin(CODE_REMAP)
+        if not remapped.any():
+            return df
+        df = df.assign(dong_cd=df["dong_cd"].replace(CODE_REMAP))
+        return df.groupby(["date", "hour", "dong_cd"], as_index=False, sort=False)[value_cols].sum(min_count=1)
+
 
 class LivingPopSource(MonthlyPopSource):
     """서울시 행정동별 총생활인구 월별 CSV (4개 핵심 열 파싱)"""
@@ -132,11 +142,11 @@ class LivingPopSource(MonthlyPopSource):
         df["hour"] = pd.to_numeric(df["hour"], errors="coerce")
         df["pop"] = pd.to_numeric(df["pop"], errors="coerce")
         df["date"] = pd.to_datetime(df["date"].str.strip(), format="%Y%m%d", errors="coerce")
-        return df.dropna(subset=["date", "hour", "pop"])
+        return self.remap_dongs(df.dropna(subset=["date", "hour", "pop"]), ["pop"])
 
 
 class ParkMapSource(CsvSource):
-    """공원-행정동 매핑 CSV (서울시 주요 공원 현황 기반)"""
+    """공원-행정동 매핑 CSV를 생활인구 분석 단위로 읽는다."""
 
     AREA_CORRECTIONS = {
         "북한산국립공원": 77_334_000.0,   # 원본 7.7334e10 (단위 1,000배 오류)

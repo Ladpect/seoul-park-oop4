@@ -1,4 +1,5 @@
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from newdata import (
     CsvSource,
     DaytimePopPreprocessor,
     HolidayCalendar,
+    LivingPopSource,
     MonthlyPopSource,
     ParkMapper,
     PreprocessConfig,
@@ -74,6 +76,23 @@ class TestParkMapper(unittest.TestCase):
             mapper.has_park(pd.Series(["11200650", "11110515", "99999999"])).tolist(),
             [True, False, False],
         )
+
+
+class TestLivingPopSource(unittest.TestCase):
+    def test_load_remaps_new_boundary_codes_and_sums_merged_dongs(self):
+        rows = [
+            "기준일ID,시간대구분,행정동코드,총생활인구수",
+            "20250511,12,11230533,100.0",   # 용신동 분할 코드 → 11230536
+            "20250511,12,11230515,50.0",    # 용신동 분할 코드 → 11230536
+            "20250511,12,11200650,70.0",
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "LOCAL_PEOPLE_DONG_202505.csv"
+            path.write_text("\n".join(rows), encoding="utf-8-sig")
+            df = LivingPopSource(path, 2025, 5).load()
+
+        pops = df.set_index("dong_cd")["pop"].to_dict()
+        self.assertEqual(pops, {"11230536": 150.0, "11200650": 70.0})
 
 
 class TestPreprocessors(unittest.TestCase):

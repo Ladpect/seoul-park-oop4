@@ -28,6 +28,22 @@ AGE_ORDER = [
     "고령층 (60세 이상)",
     "전체 인구",
 ]
+AGE_TOTAL = "전체 인구"
+
+
+def age_short(age_group: str) -> str:
+    """'유아동 (0~9세)' → '유아동'"""
+    return age_group.split(" (")[0]
+
+
+def top_age_gaps(pooled: pd.DataFrame, n: int = 2) -> pd.DataFrame:
+    """'전체 인구'를 제외하고 공원 보유·미보유 증가율 격차(diff)가 큰 순으로 상위 n개 세대"""
+    return pooled[pooled["age_group"] != AGE_TOTAL].nlargest(n, "diff")
+
+
+def age_gap_subtitle(pooled: pd.DataFrame) -> str:
+    gaps = ", ".join(f"{age_short(r.age_group)}({r.diff:+.2f}%p)" for r in top_age_gaps(pooled).itertuples())
+    return f"4개년(2023~2026) 평균 · 공원 보유·미보유 행정동 간 증가율 차이 상위 {gaps}"
 
 
 class AgeGroupAnalyzer(BaseAnalyzer):
@@ -90,7 +106,7 @@ class AgeRateBarChart(Chart):
                           xaxis=dict(title=""))
         return Theme.apply(
             fig, "세대별 1월 → 5월 생활인구 증가율 비교 (주말·공휴일 낮 10~17시 기준)",
-            "4개년(2023~2026) 평균 · 유아동(+4.08%p)과 청년층(+2.80%p)에서 공원 유인 효과가 가장 크게 나타남",
+            age_gap_subtitle(pooled),
         )
 
 
