@@ -15,6 +15,7 @@ from newdata import ParkMapper, ParkMapSource
 from topic1_visualize import (
     BaseAnalyzer,
     DongNameLookup,
+    NameLookup,
     PARK_MAP_CSV_PATH,
     SEOUL_GEOJSON_PATH,
     SeasonalChangeAnalyzer,
@@ -24,8 +25,8 @@ from topic1_visualize import (
 from topic2_visualize import AGE_ORDER, AgeGroupAnalyzer
 
 
-class _FakeNameLookup:
-    """GeoJSON 없이 NameLookup 프로토콜만 구현한 테스트용 조회 객체 (ISP 검증)"""
+class _FakeNameLookup(NameLookup):
+    """GeoJSON 없이 NameLookup 추상 메서드만 구현한 테스트용 조회 객체 (ISP 검증)"""
 
     def __init__(self, mapping: dict[str, str]):
         self._mapping = mapping
